@@ -1,0 +1,4 @@
+<resources>
+
+    <style name="Theme.Spendai" parent="Theme.MaterialComponents.Light" />
+</resources>
