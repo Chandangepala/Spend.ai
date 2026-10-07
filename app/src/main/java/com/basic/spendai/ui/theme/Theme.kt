@@ -1,43 +1,69 @@
 package com.basic.spendai.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = Green80,
+    onPrimary = Green20,
+    primaryContainer = Green30,
+    onPrimaryContainer = Green90,
+    secondary = Teal80,
+    background = Forest10,
+    onBackground = Green90,
+    surface = Forest15,
+    onSurface = Green90,
+    surfaceContainerLow = Forest15,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    primary = Green40,
     onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primaryContainer = Green90,
+    onPrimaryContainer = Green30,
+    secondary = Teal40,
+    secondaryContainer = Teal90,
+    background = Mint95,
+    onBackground = Ink,
+    surface = Mint98,
+    onSurface = Ink,
+    onSurfaceVariant = InkVariant,
+    surfaceContainerLow = Mint98,
 )
+
+private val ClayShapes = Shapes(
+    small = RoundedCornerShape(16.dp),
+    medium = RoundedCornerShape(24.dp),
+    large = RoundedCornerShape(32.dp),
+    extraLarge = RoundedCornerShape(36.dp),
+)
+
+@Immutable
+data class ClayPalette(val shadow: Color, val highlight: Color)
+
+val LocalClayPalette = staticCompositionLocalOf {
+    ClayPalette(shadow = ClayShadowLight, highlight = ClayHighlightLight)
+}
 
 @Composable
 fun SpendaiTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Off by default so the green financial motif is kept on Android 12+
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -49,10 +75,18 @@ fun SpendaiTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+    val clayPalette = if (darkTheme) {
+        ClayPalette(shadow = ClayShadowDark, highlight = ClayHighlightDark)
+    } else {
+        ClayPalette(shadow = ClayShadowLight, highlight = ClayHighlightLight)
+    }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalClayPalette provides clayPalette) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            shapes = ClayShapes,
+            content = content
+        )
+    }
 }

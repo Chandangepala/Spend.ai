@@ -1,4 +1,6 @@
 <resources>
 
-    <style name="Theme.Spendai" parent="Theme.MaterialComponents.Light" />
+    <style name="Theme.Spendai" parent="Theme.MaterialComponents.Light">
+        <item name="android:windowBackground">@color/mint_background</item>
+    </style>
 </resources>
