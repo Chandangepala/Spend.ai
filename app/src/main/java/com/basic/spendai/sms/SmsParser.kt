@@ -1,0 +1,72 @@
+package com.basic.spendai.sms
+
+data class ParsedTransaction(val amount: Double, val merchant: String?)
+
+/** Pulls the amount and merchant out of an Indian bank / UPI debit SMS. Returns null for anything else. */
+object SmsParser {
+    private val options = setOf(RegexOption.IGNORE_CASE)
+
+    private val amountRegex = Regex("""(?:INR|Rs\.?|₹)\s*([\d,]+(?:\.\d{1,2})?)""", options)
+    // SBI style: "A/C X1234 debited by 20.0 on ..." with no currency marker.
+    private val bareAmountRegex = Regex("""\bdebited\s+(?:by|with|for)\s+([\d,]+(?:\.\d{1,2})?)""", options)
+    private val debitRegex =
+        Regex("""\b(debited|debit|spent|paid|sent|withdrawn|withdrawal|purchase[d]?|txn of)\b""", options)
+    private val creditRegex = Regex("""\b(credited|received|deposited)\b""", options)
+    private val rejectRegex = Regex(
+        """\b(otp|one time password|will be debited|is due|due on|due date|payment due|requested|request|""" +
+            """failed|declined|reversed|refund(ed)?|cashback)\b""",
+        options,
+    )
+    private val accountHintRegex = Regex("""a/c|\bacct\b|account|\bcard\b|\bx+\d{2,}|\*\d{3,}|\bupi\b|\bvpa\b""", options)
+
+    // Tried in order; the first that yields something name-like wins.
+    private val merchantPatterns = listOf(
+        Regex("""\bUPI/P2[AM]/\d+/([^/\n]+)""", options),
+        Regex("""\b(?:VPA|to)\s+([\w.\-]+)@""", options),
+        Regex("""\bat\s+([A-Za-z].*)""", options),
+        Regex(""";\s*([A-Za-z][^;]*?)\s+credited""", options),
+        Regex("""\bto\s+([A-Za-z].*)""", options),
+        Regex("""\bInfo:?\s*([A-Za-z].*)""", options),
+    )
+    private val merchantEnd = Regex(
+        """\s+(on|ref|refno|avl|avbl|bal|via|using|upi|from|txn|if|not|call|for|with|thru)\b|[;,(\n]|\.(\s|$)""",
+        options,
+    )
+    private val notAMerchant = Regex("""^(a/c|ac|acct|account|your|card|xx|\*)""", options)
+
+    fun parse(body: String): ParsedTransaction? {
+        if (rejectRegex.containsMatchIn(body)) return null
+        val debit = debitRegex.find(body) ?: return null
+        // "Acct debited ...; AMAZON credited" is a debit, "credited ... by a/c debited" is not.
+        val credit = creditRegex.find(body)
+        if (credit != null && credit.range.first < debit.range.first) return null
+        if (!accountHintRegex.containsMatchIn(body)) return null
+
+        val amountMatch = amountRegex.find(body) ?: bareAmountRegex.find(body) ?: return null
+        val amount = amountMatch.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
+        if (amount <= 0) return null
+
+        return ParsedTransaction(amount, findMerchant(body))
+    }
+
+    private fun findMerchant(body: String): String? {
+        for (pattern in merchantPatterns) {
+            val raw = pattern.find(body)?.groupValues?.get(1) ?: continue
+            val cleaned = cleanMerchant(raw) ?: continue
+            return cleaned
+        }
+        return null
+    }
+
+    private fun cleanMerchant(raw: String): String? {
+        val cut = merchantEnd.find(raw)?.let { raw.substring(0, it.range.first) } ?: raw
+        val name = cut.replace(Regex("""\s+"""), " ").trim().take(30).trim()
+        if (name.length < 2 || name.none { it.isLetter() } || notAMerchant.containsMatchIn(name)) return null
+        // "AMAZON PAY" / "swiggy" read better as "Amazon Pay" / "Swiggy"; leave mixed-case names alone.
+        return if (name == name.uppercase() || name == name.lowercase()) {
+            name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
+        } else {
+            name
+        }
+    }
+}
