@@ -5,15 +5,50 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Expense::class], version = 1, exportSchema = false)
+@Database(
+    entities = [Expense::class, DetectedTransaction::class, MerchantCategory::class],
+    version = 2,
+    exportSchema = false,
+)
 @TypeConverters(Converters::class)
 abstract class ExpenseDatabase : RoomDatabase() {
     abstract fun expenseDao(): ExpenseDao
+    abstract fun detectedTransactionDao(): DetectedTransactionDao
 
     companion object {
         @Volatile
         private var instance: ExpenseDatabase? = null
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS detected_transactions (
+                        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        smsKey TEXT NOT NULL,
+                        sender TEXT NOT NULL,
+                        body TEXT NOT NULL,
+                        amount REAL NOT NULL,
+                        merchant TEXT,
+                        suggestedCategory TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        status TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_detected_transactions_smsKey " +
+                        "ON detected_transactions (smsKey)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS merchant_categories " +
+                        "(merchant TEXT NOT NULL PRIMARY KEY, category TEXT NOT NULL)"
+                )
+            }
+        }
 
         fun get(context: Context): ExpenseDatabase =
             instance ?: synchronized(this) {
@@ -21,7 +56,7 @@ abstract class ExpenseDatabase : RoomDatabase() {
                     context.applicationContext,
                     ExpenseDatabase::class.java,
                     "spendai.db"
-                ).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
             }
     }
 }

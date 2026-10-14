@@ -58,11 +58,12 @@ import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.ExpenseUiState
 import com.basic.spendai.ui.ExpenseViewModel
 import com.basic.spendai.ui.components.ClayCard
+import com.basic.spendai.ui.detected.DetectedBanner
 import com.basic.spendai.ui.components.clay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit) {
+fun HomeScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit, onOpenDetected: () -> Unit = {}) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     val layoutInfo = rememberHomeLayoutInfo()
@@ -102,12 +103,21 @@ fun HomeScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit) {
             )
         },
     ) { innerPadding ->
-        HomeContent(
-            state = state,
-            layoutInfo = layoutInfo,
-            onDelete = viewModel::deleteExpense,
-            modifier = Modifier.padding(innerPadding),
-        )
+        Column(Modifier.padding(innerPadding)) {
+            if (state.pendingDetections.isNotEmpty()) {
+                DetectedBanner(
+                    count = state.pendingDetections.size,
+                    onReview = onOpenDetected,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
+                )
+            }
+            HomeContent(
+                state = state,
+                layoutInfo = layoutInfo,
+                onDelete = viewModel::deleteExpense,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 
     if (showAddSheet) {

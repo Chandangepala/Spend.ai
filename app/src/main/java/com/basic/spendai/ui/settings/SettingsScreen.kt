@@ -1,5 +1,6 @@
 package com.basic.spendai.ui.settings
 
+import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -37,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.basic.spendai.data.AppCurrency
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.basic.spendai.ui.components.ClayCard
 import com.basic.spendai.ui.components.clay
 import com.basic.spendai.ui.theme.SpendaiTheme
@@ -47,6 +52,8 @@ fun SettingsScreen(
     selectedCurrency: AppCurrency,
     onCurrencySelected: (AppCurrency) -> Unit,
     onBack: () -> Unit,
+    smsImportEnabled: Boolean = false,
+    onSmsImportChange: (Boolean) -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
 
@@ -77,7 +84,10 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                Column(Modifier.padding(start = 4.dp, bottom = 4.dp)) {
+                SmsImportRow(enabled = smsImportEnabled, onChange = onSmsImportChange)
+            }
+            item {
+                Column(Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)) {
                     Text("Currency", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Choose the currency your expenses are shown in. Existing amounts keep their numbers and are not converted.",
@@ -93,6 +103,46 @@ fun SettingsScreen(
                     onClick = { onCurrencySelected(currency) },
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+private fun SmsImportRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
+    val permissions = rememberMultiplePermissionsState(
+        listOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS),
+    ) { results -> if (results.values.all { it }) onChange(true) }
+    val checked = enabled && permissions.allPermissionsGranted
+
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = checked,
+                    role = Role.Switch,
+                    onValueChange = { on ->
+                        if (on && !permissions.allPermissionsGranted) {
+                            permissions.launchMultiplePermissionRequest()
+                        } else {
+                            onChange(on)
+                        }
+                    },
+                )
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Auto-detect expenses from SMS", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Reads bank debit SMS and suggests expenses for you to review. Messages are processed on this device and never leave it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.size(12.dp))
+            Switch(checked = checked, onCheckedChange = null)
         }
     }
 }

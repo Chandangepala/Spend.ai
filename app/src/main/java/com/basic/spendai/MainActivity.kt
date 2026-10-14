@@ -9,13 +9,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.basic.spendai.ui.ExpenseViewModel
+import com.basic.spendai.ui.detected.DetectedTransactionsScreen
 import com.basic.spendai.ui.home.HomeScreen
 import com.basic.spendai.ui.settings.SettingsScreen
 import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.util.LocalCurrency
+
+private enum class Screen { Home, Settings, Detected }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,17 +30,33 @@ class MainActivity : ComponentActivity() {
             SpendaiTheme {
                 val viewModel: ExpenseViewModel = viewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
-                var showSettings by rememberSaveable { mutableStateOf(false) }
+                var screen by rememberSaveable { mutableStateOf(Screen.Home) }
+
+                LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.scanSms() }
 
                 CompositionLocalProvider(LocalCurrency provides state.currency) {
-                    if (showSettings) {
-                        SettingsScreen(
+                    when (screen) {
+                        Screen.Settings -> SettingsScreen(
                             selectedCurrency = state.currency,
                             onCurrencySelected = viewModel::setCurrency,
-                            onBack = { showSettings = false },
+                            onBack = { screen = Screen.Home },
+                            smsImportEnabled = state.smsImportEnabled,
+                            onSmsImportChange = viewModel::setSmsImportEnabled,
                         )
-                    } else {
-                        HomeScreen(viewModel, onOpenSettings = { showSettings = true })
+
+                        Screen.Detected -> DetectedTransactionsScreen(
+                            detections = state.pendingDetections,
+                            onAccept = viewModel::acceptDetection,
+                            onDismiss = viewModel::dismissDetection,
+                            onAcceptAll = viewModel::acceptAllDetections,
+                            onBack = { screen = Screen.Home },
+                        )
+
+                        Screen.Home -> HomeScreen(
+                            viewModel,
+                            onOpenSettings = { screen = Screen.Settings },
+                            onOpenDetected = { screen = Screen.Detected },
+                        )
                     }
                 }
             }
