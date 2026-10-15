@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [Expense::class, DetectedTransaction::class, MerchantCategory::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -50,13 +50,21 @@ abstract class ExpenseDatabase : RoomDatabase() {
             }
         }
 
+        /** Phase 1 AI: raw merchant text, AI processing state, and the HIDDEN status (stored as text). */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE detected_transactions ADD COLUMN rawMerchant TEXT")
+                db.execSQL("ALTER TABLE detected_transactions ADD COLUMN aiState TEXT NOT NULL DEFAULT 'PENDING_AI'")
+            }
+        }
+
         fun get(context: Context): ExpenseDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     ExpenseDatabase::class.java,
                     "spendai.db"
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
     }
 }

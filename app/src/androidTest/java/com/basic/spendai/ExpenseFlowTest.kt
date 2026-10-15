@@ -2,12 +2,14 @@ package com.basic.spendai
 
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
@@ -94,7 +96,9 @@ class ExpenseFlowTest {
         waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
 
         composeRule.onNodeWithContentDescription("Settings").performClick()
-        waitUntilOne(hasText("Euro"))
+        // Settings is a lazy list; the AI and SMS rows push the currencies below the fold on small screens.
+        composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasScrollAction()).fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Euro"))
         composeRule.onNode(hasClickAction() and hasText("Euro")).performClick()
         composeRule.onNodeWithContentDescription("Back").performClick()
 

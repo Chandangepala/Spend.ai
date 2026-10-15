@@ -14,6 +14,13 @@ interface ExpenseDao {
     @Query("SELECT SUM(amount) FROM expenses")
     fun observeTotal(): Flow<Double?>
 
+    /** Expenses that could be the same spend: amount within [minAmount, maxAmount], time within [from, to]. */
+    @Query(
+        "SELECT * FROM expenses WHERE amount BETWEEN :minAmount AND :maxAmount " +
+            "AND timestamp BETWEEN :from AND :to ORDER BY timestamp DESC"
+    )
+    suspend fun findNear(minAmount: Double, maxAmount: Double, from: Long, to: Long): List<Expense>
+
     @Insert
     suspend fun insert(expense: Expense)
 

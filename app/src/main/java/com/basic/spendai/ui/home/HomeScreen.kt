@@ -39,6 +39,8 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,12 +54,14 @@ import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.data.Category
 import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.ExpenseUiState
 import com.basic.spendai.ui.ExpenseViewModel
 import com.basic.spendai.ui.components.ClayCard
+import com.basic.spendai.ui.components.DuplicateDialog
 import com.basic.spendai.ui.detected.DetectedBanner
 import com.basic.spendai.ui.components.clay
 
@@ -66,6 +70,8 @@ import com.basic.spendai.ui.components.clay
 fun HomeScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit, onOpenDetected: () -> Unit = {}) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var duplicate by remember { mutableStateOf<Pair<Expense, () -> Unit>?>(null) }
     val layoutInfo = rememberHomeLayoutInfo()
 
     Scaffold(
@@ -123,7 +129,24 @@ fun HomeScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit, onOpenDe
     if (showAddSheet) {
         AddExpenseSheet(
             onDismiss = { showAddSheet = false },
-            onSave = { title, amount, category -> viewModel.addExpense(title, amount, category) },
+            onSave = { title, amount, category ->
+                scope.launch {
+                    val add = { viewModel.addExpense(title, amount, category) }
+                    val existing = viewModel.findDuplicate(amount, System.currentTimeMillis())
+                    if (existing == null) add() else duplicate = existing to add
+                }
+            },
+        )
+    }
+
+    duplicate?.let { (existing, add) ->
+        DuplicateDialog(
+            existing = existing,
+            onAddAnyway = {
+                add()
+                duplicate = null
+            },
+            onSkip = { duplicate = null },
         )
     }
 }

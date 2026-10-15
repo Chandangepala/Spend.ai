@@ -1,6 +1,12 @@
 package com.basic.spendai.sms
 
-data class ParsedTransaction(val amount: Double, val merchant: String?)
+data class ParsedTransaction(
+    val amount: Double,
+    /** Cleaned name for display, e.g. "Swiggy". */
+    val merchant: String?,
+    /** The matching text as it appeared in the SMS, e.g. "PAYTM*SWIGGY8291". */
+    val rawMerchant: String? = merchant,
+)
 
 /** Pulls the amount and merchant out of an Indian bank / UPI debit SMS. Returns null for anything else. */
 object SmsParser {
@@ -46,20 +52,22 @@ object SmsParser {
         val amount = amountMatch.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
         if (amount <= 0) return null
 
-        return ParsedTransaction(amount, findMerchant(body))
+        val (merchant, rawMerchant) = findMerchant(body) ?: (null to null)
+        return ParsedTransaction(amount, merchant, rawMerchant)
     }
 
-    private fun findMerchant(body: String): String? {
+    /** (cleaned, raw) for the first pattern that yields something name-like. */
+    private fun findMerchant(body: String): Pair<String, String>? {
         for (pattern in merchantPatterns) {
-            val raw = pattern.find(body)?.groupValues?.get(1) ?: continue
+            val match = pattern.find(body)?.groupValues?.get(1) ?: continue
+            val raw = (merchantEnd.find(match)?.let { match.substring(0, it.range.first) } ?: match).trim()
             val cleaned = cleanMerchant(raw) ?: continue
-            return cleaned
+            return cleaned to raw.take(60)
         }
         return null
     }
 
-    private fun cleanMerchant(raw: String): String? {
-        val cut = merchantEnd.find(raw)?.let { raw.substring(0, it.range.first) } ?: raw
+    private fun cleanMerchant(cut: String): String? {
         val name = cut.replace(Regex("""\s+"""), " ").trim().take(30).trim()
         if (name.length < 2 || name.none { it.isLetter() } || notAMerchant.containsMatchIn(name)) return null
         // "AMAZON PAY" / "swiggy" read better as "Amazon Pay" / "Swiggy"; leave mixed-case names alone.

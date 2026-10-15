@@ -52,13 +52,20 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        Screen.Detected -> DetectedTransactionsScreen(
-                            detections = state.pendingDetections,
-                            onAccept = viewModel::acceptDetection,
-                            onDismiss = viewModel::dismissDetection,
-                            onAcceptAll = viewModel::acceptAllDetections,
-                            onBack = { screen = Screen.Home },
-                        )
+                        Screen.Detected -> {
+                            val hidden by viewModel.hiddenDetections.collectAsStateWithLifecycle()
+                            DetectedTransactionsScreen(
+                                detections = state.pendingDetections,
+                                onAccept = viewModel::acceptDetection,
+                                onDismiss = viewModel::dismissDetection,
+                                onAcceptAll = viewModel::acceptAllDetections,
+                                onBack = { screen = Screen.Home },
+                                hidden = hidden,
+                                onRestore = viewModel::restoreDetection,
+                                onRename = viewModel::renameDetection,
+                                findDuplicate = viewModel::findDuplicate,
+                            )
+                        }
 
                         Screen.Home -> HomeScreen(
                             viewModel,
