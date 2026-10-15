@@ -5,6 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 import com.basic.spendai.ai.AiProviders
+import com.basic.spendai.ai.AiResult
+import com.basic.spendai.ai.QuickEntryItem
+import com.basic.spendai.ai.QuickEntryParser
 import com.basic.spendai.ai.AiStatus
 import com.basic.spendai.data.AccuracyStats
 import com.basic.spendai.data.AiState
@@ -23,6 +26,7 @@ import com.basic.spendai.sms.CategoryGuesser
 import com.basic.spendai.sms.SmsImportRepository
 import com.basic.spendai.sms.SmsInboxScanner
 import com.basic.spendai.sms.SmsParser
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,6 +35,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class AiUiState(
     val enabled: Boolean = true,
@@ -105,6 +110,10 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             dao.insert(Expense(title = title.trim(), amount = amount, category = category))
         }
     }
+
+    /** Splits a note like "200 chai, 450 auto" into expenses to confirm; rules when AI isn't available. */
+    suspend fun parseQuickEntry(text: String): AiResult<List<QuickEntryItem>> =
+        withContext(Dispatchers.Default) { QuickEntryParser.run(AiProviders.best(getApplication()), text) }
 
     fun setCurrency(currency: AppCurrency) {
         viewModelScope.launch { settings.setCurrency(currency) }
