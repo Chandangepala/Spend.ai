@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
+import com.basic.spendai.ai.AiProviders
+import com.basic.spendai.ai.AiStatus
 import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.data.Category
 import com.basic.spendai.data.DetectedTransaction
@@ -14,12 +16,19 @@ import com.basic.spendai.data.MerchantCategory
 import com.basic.spendai.data.SettingsRepository
 import com.basic.spendai.sms.CategoryGuesser
 import com.basic.spendai.sms.SmsInboxScanner
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+data class AiUiState(
+    val enabled: Boolean = true,
+    val status: AiStatus = AiStatus.Unavailable,
+)
 
 data class ExpenseUiState(
     val expenses: List<Expense> = emptyList(),
@@ -45,6 +54,30 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         ) { expenses, total, currency, pending, smsEnabled ->
             ExpenseUiState(expenses, total ?: 0.0, currency, pending, smsEnabled)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExpenseUiState())
+
+    private val aiStatus = MutableStateFlow<AiStatus>(AiStatus.Unavailable)
+    private var aiDownload: Job? = null
+
+    val aiState: StateFlow<AiUiState> =
+        combine(settings.aiEnabled, aiStatus) { enabled, status -> AiUiState(enabled, status) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AiUiState())
+
+    /** Re-checks whether Gemini Nano is ready; cheap, so it runs whenever Settings opens. */
+    fun refreshAiStatus() {
+        if (aiDownload?.isActive == true) return
+        viewModelScope.launch { aiStatus.value = AiProviders.nano.status() }
+    }
+
+    fun downloadAiModel() {
+        if (aiDownload?.isActive == true) return
+        aiDownload = viewModelScope.launch {
+            AiProviders.nano.download().collect { aiStatus.value = it }
+        }
+    }
+
+    fun setAiEnabled(enabled: Boolean) {
+        viewModelScope.launch { settings.setAiEnabled(enabled) }
+    }
 
     fun addExpense(title: String, amount: Double, category: Category) {
         viewModelScope.launch {

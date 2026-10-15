@@ -26,6 +26,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -39,7 +41,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.basic.spendai.ai.AiStatus
 import com.basic.spendai.data.AppCurrency
+import com.basic.spendai.ui.AiUiState
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.basic.spendai.ui.components.ClayCard
@@ -54,6 +58,9 @@ fun SettingsScreen(
     onBack: () -> Unit,
     smsImportEnabled: Boolean = false,
     onSmsImportChange: (Boolean) -> Unit = {},
+    ai: AiUiState = AiUiState(),
+    onAiEnabledChange: (Boolean) -> Unit = {},
+    onDownloadAi: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
 
@@ -84,6 +91,19 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
+                Column(Modifier.padding(start = 4.dp, bottom = 4.dp)) {
+                    Text("On-device AI", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Your financial SMS never leaves your phone. All AI runs on this device.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            item {
+                AiRow(ai = ai, onEnabledChange = onAiEnabledChange, onDownload = onDownloadAi)
+            }
+            item {
                 SmsImportRow(enabled = smsImportEnabled, onChange = onSmsImportChange)
             }
             item {
@@ -105,6 +125,71 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun AiRow(ai: AiUiState, onEnabledChange: (Boolean) -> Unit, onDownload: () -> Unit) {
+    val status = ai.status
+    val (headline, detail) = when (status) {
+        AiStatus.Available -> "Gemini Nano ready" to "Smarter categories and merchant names, processed on device."
+        is AiStatus.Downloadable ->
+            "Gemini Nano available to download" to (status.error ?: "A one-time download managed by Android. Wi-Fi recommended.")
+        is AiStatus.Downloading -> "Downloading Gemini Nano…" to downloadDetail(status)
+        AiStatus.Unavailable -> "Not supported on this device" to "Using smart rules instead. Everything still works."
+    }
+
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(value = ai.enabled, role = Role.Switch, onValueChange = onEnabledChange),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Use on-device AI", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (ai.enabled) headline else "Off. Using smart rules only.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Spacer(Modifier.size(12.dp))
+                Switch(checked = ai.enabled, onCheckedChange = null)
+            }
+            if (ai.enabled) {
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                when (status) {
+                    is AiStatus.Downloadable -> Button(onClick = onDownload, modifier = Modifier.padding(top = 10.dp)) {
+                        Text(if (status.error != null) "Retry download" else "Download model")
+                    }
+                    is AiStatus.Downloading -> {
+                        val fraction = status.bytesTotal?.takeIf { it > 0 }?.let { status.bytesDone.toFloat() / it }
+                        val barModifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp)
+                        if (fraction != null) {
+                            LinearProgressIndicator(progress = { fraction.coerceIn(0f, 1f) }, modifier = barModifier)
+                        } else {
+                            LinearProgressIndicator(modifier = barModifier)
+                        }
+                    }
+                    else -> Unit
+                }
+            }
+        }
+    }
+}
+
+private fun downloadDetail(status: AiStatus.Downloading): String {
+    val doneMb = status.bytesDone / 1_000_000
+    val totalMb = status.bytesTotal?.let { it / 1_000_000 }
+    return if (totalMb != null && totalMb > 0) "$doneMb of $totalMb MB" else "Starting…"
 }
 
 @OptIn(ExperimentalPermissionsApi::class)

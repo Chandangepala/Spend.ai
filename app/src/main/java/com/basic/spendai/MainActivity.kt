@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -30,19 +31,26 @@ class MainActivity : ComponentActivity() {
             SpendaiTheme {
                 val viewModel: ExpenseViewModel = viewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
+                val aiState by viewModel.aiState.collectAsStateWithLifecycle()
                 var screen by rememberSaveable { mutableStateOf(Screen.Home) }
 
                 LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.scanSms() }
 
                 CompositionLocalProvider(LocalCurrency provides state.currency) {
                     when (screen) {
-                        Screen.Settings -> SettingsScreen(
-                            selectedCurrency = state.currency,
-                            onCurrencySelected = viewModel::setCurrency,
-                            onBack = { screen = Screen.Home },
-                            smsImportEnabled = state.smsImportEnabled,
-                            onSmsImportChange = viewModel::setSmsImportEnabled,
-                        )
+                        Screen.Settings -> {
+                            LaunchedEffect(Unit) { viewModel.refreshAiStatus() }
+                                SettingsScreen(
+                                selectedCurrency = state.currency,
+                                onCurrencySelected = viewModel::setCurrency,
+                                onBack = { screen = Screen.Home },
+                                smsImportEnabled = state.smsImportEnabled,
+                                onSmsImportChange = viewModel::setSmsImportEnabled,
+                                ai = aiState,
+                                onAiEnabledChange = viewModel::setAiEnabled,
+                                onDownloadAi = viewModel::downloadAiModel,
+                            )
+                        }
 
                         Screen.Detected -> DetectedTransactionsScreen(
                             detections = state.pendingDetections,

@@ -15,12 +15,17 @@ android {
 
     defaultConfig {
         applicationId = "com.basic.spendai"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    sourceSets {
+        // Exported Room schemas, so migrations can be tested against each past version.
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
 
     buildTypes {
@@ -39,6 +44,10 @@ android {
     buildFeatures {
         compose = true
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -67,11 +76,14 @@ dependencies {
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.coil.compose)
     implementation(libs.converter.moshi)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.core)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.genai.prompt)
     implementation(libs.logging.interceptor)
     implementation(libs.material)
     implementation(libs.moshi.kotlin)
@@ -87,6 +99,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.runner)
+    androidTestImplementation(libs.androidx.room.testing)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
     "ksp"(libs.androidx.room.compiler)
