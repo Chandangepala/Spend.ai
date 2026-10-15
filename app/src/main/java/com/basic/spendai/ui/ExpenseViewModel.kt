@@ -15,6 +15,7 @@ import com.basic.spendai.data.ExpenseDatabase
 import com.basic.spendai.data.MerchantCategory
 import com.basic.spendai.data.SettingsRepository
 import com.basic.spendai.sms.CategoryGuesser
+import com.basic.spendai.sms.SmsImportRepository
 import com.basic.spendai.sms.SmsInboxScanner
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,6 +55,9 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         ) { expenses, total, currency, pending, smsEnabled ->
             ExpenseUiState(expenses, total ?: 0.0, currency, pending, smsEnabled)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExpenseUiState())
+
+    val hiddenDetections: StateFlow<List<DetectedTransaction>> =
+        detectedDao.observeHidden().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val aiStatus = MutableStateFlow<AiStatus>(AiStatus.Unavailable)
     private var aiDownload: Job? = null
@@ -96,24 +100,51 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
     fun setSmsImportEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settings.setSmsImportEnabled(enabled)
-            if (enabled) SmsInboxScanner.scan(getApplication())
+            if (enabled) scanAndEnrich()
         }
     }
 
-    /** Picks up SMS that arrived while the receiver couldn't run (e.g. before permission was granted). */
+    /**
+     * Picks up SMS that arrived while the receiver couldn't run (e.g. before permission was granted),
+     * then lets the on-device model tidy pending ones. Called on every resume, since Gemini Nano
+     * only runs while the app is in the foreground.
+     */
     fun scanSms() {
         viewModelScope.launch {
-            if (settings.smsImportEnabled.first()) SmsInboxScanner.scan(getApplication())
+            if (settings.smsImportEnabled.first()) scanAndEnrich()
         }
+    }
+
+    private suspend fun scanAndEnrich() {
+        val app = getApplication<Application>()
+        SmsInboxScanner.scan(app)
+        SmsImportRepository(app).enrichPending(AiProviders.best(app))
+    }
+
+    /** An existing expense that looks like the same spend: amount within ±1, time within a day. */
+    suspend fun findDuplicate(amount: Double, timestamp: Long): Expense? =
+        dao.findNear(amount - 1, amount + 1, timestamp - DAY_MS, timestamp + DAY_MS).firstOrNull()
+
+    fun restoreDetection(detection: DetectedTransaction) {
+        viewModelScope.launch { detectedDao.updateStatus(detection.id, DetectionStatus.PENDING) }
+    }
+
+    fun renameDetection(detection: DetectedTransaction, merchant: String) {
+        val name = merchant.trim()
+        if (name.isEmpty()) return
+        viewModelScope.launch { detectedDao.updateMerchant(detection.id, name) }
     }
 
     fun acceptDetection(detection: DetectedTransaction, category: Category) {
         viewModelScope.launch { accept(detection, category) }
     }
 
+    /** Adds every pending detection except possible duplicates, which stay for one-by-one review. */
     fun acceptAllDetections() {
         viewModelScope.launch {
-            uiState.value.pendingDetections.forEach { accept(it, it.suggestedCategory) }
+            uiState.value.pendingDetections
+                .filter { findDuplicate(it.amount, it.timestamp) == null }
+                .forEach { accept(it, it.suggestedCategory) }
         }
     }
 
@@ -139,5 +170,9 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                 detectedDao.updatePendingCategory(merchant, category)
             }
         }
+    }
+
+    private companion object {
+        const val DAY_MS = 24 * 60 * 60 * 1000L
     }
 }

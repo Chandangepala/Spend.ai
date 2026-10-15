@@ -12,6 +12,25 @@ interface DetectedTransactionDao {
     @Query("SELECT * FROM detected_transactions WHERE status = 'PENDING' ORDER BY timestamp DESC")
     fun observePending(): Flow<List<DetectedTransaction>>
 
+    @Query("SELECT * FROM detected_transactions WHERE status = 'HIDDEN' ORDER BY timestamp DESC")
+    fun observeHidden(): Flow<List<DetectedTransaction>>
+
+    /** Pending rows the on-device model hasn't seen yet, newest first. */
+    @Query(
+        "SELECT * FROM detected_transactions WHERE status = 'PENDING' AND aiState = 'PENDING_AI' " +
+            "ORDER BY timestamp DESC LIMIT :limit"
+    )
+    suspend fun pendingForAi(limit: Int): List<DetectedTransaction>
+
+    @Query("UPDATE detected_transactions SET merchant = :merchant, suggestedCategory = :category, aiState = :aiState WHERE id = :id")
+    suspend fun applyEnrichment(id: Long, merchant: String?, category: Category, aiState: AiState)
+
+    @Query("UPDATE detected_transactions SET status = 'HIDDEN', aiState = 'AI_DONE' WHERE id = :id")
+    suspend fun markHidden(id: Long)
+
+    @Query("UPDATE detected_transactions SET merchant = :merchant WHERE id = :id")
+    suspend fun updateMerchant(id: Long, merchant: String)
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIgnore(transactions: List<DetectedTransaction>): List<Long>
 

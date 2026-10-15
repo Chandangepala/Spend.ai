@@ -2,7 +2,12 @@ package com.basic.spendai.ai
 
 import com.basic.spendai.data.Category
 
-data class AiResult<O>(val value: O, val fromAi: Boolean)
+/**
+ * [fromAi]: the value came from a validated model reply.
+ * [replied]: the model answered at all; false means it was unavailable (busy, quota, background, off),
+ * so the caller may want to retry later rather than settle for the rules result.
+ */
+data class AiResult<O>(val value: O, val fromAi: Boolean, val replied: Boolean = fromAi)
 
 /**
  * One narrow AI job: build a short prompt, ask the provider, validate the reply against facts
@@ -22,7 +27,11 @@ abstract class AiTask<I, O> {
     suspend fun run(provider: AiProvider, input: I): AiResult<O> {
         val reply = provider.generate(prompt(input), maxTokens)
         val parsed = reply?.let { runCatching { parse(it, input) }.getOrNull() }
-        return if (parsed != null) AiResult(parsed, fromAi = true) else AiResult(fallback(input), fromAi = false)
+        return if (parsed != null) {
+            AiResult(parsed, fromAi = true, replied = true)
+        } else {
+            AiResult(fallback(input), fromAi = false, replied = reply != null)
+        }
     }
 
     companion object {

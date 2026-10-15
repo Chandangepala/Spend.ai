@@ -46,6 +46,13 @@ class SmsParserTest {
         val txn = SmsParser.parse("INR 540.00 debited A/c no. XX1234 14-10-26 10:20:11 UPI/P2M/628712345678/UBER INDIA Not you? SMS BLOCK 1234 to 919951860002 Axis Bank")
         assertEquals(540.0, txn!!.amount, 0.001)
         assertEquals("Uber India", txn.merchant)
+        assertEquals("UBER INDIA", txn.rawMerchant)
+    }
+
+    @Test
+    fun keepsRawMerchantTextForTheModel() {
+        val txn = SmsParser.parse("INR 250.00 debited A/c no. XX1234 UPI/P2M/628712345678/PAYTM*SWIGGY8291 Not you? Axis Bank")
+        assertEquals("PAYTM*SWIGGY8291", txn!!.rawMerchant)
     }
 
     @Test
