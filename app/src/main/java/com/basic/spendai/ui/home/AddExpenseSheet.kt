@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -20,11 +23,13 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,9 +41,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.basic.spendai.ai.AiResult
+import com.basic.spendai.ai.QuickEntryItem
 import com.basic.spendai.data.Category
 import com.basic.spendai.ui.components.clay
 import com.basic.spendai.util.LocalCurrency
+import java.text.DecimalFormat
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -46,6 +54,9 @@ import kotlinx.coroutines.launch
 fun AddExpenseSheet(
     onDismiss: () -> Unit,
     onSave: (title: String, amount: Double, category: Category) -> Unit,
+    /** Splits a note like "200 chai, 450 auto"; null hides quick entry. */
+    onQuickParse: (suspend (String) -> AiResult<List<QuickEntryItem>>)? = null,
+    onSaveMany: (List<QuickEntryItem>) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -54,6 +65,13 @@ fun AddExpenseSheet(
     var amountText by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf(Category.Food) }
     var showErrors by remember { mutableStateOf(false) }
+
+    var quickText by rememberSaveable { mutableStateOf("") }
+    var parsing by remember { mutableStateOf(false) }
+    var quickError by remember { mutableStateOf<String?>(null) }
+    var reviewFromAi by remember { mutableStateOf(false) }
+    val reviewRows = remember { mutableStateListOf<QuickRow>() }
+    val amountFormat = remember { DecimalFormat("0.##") }
 
     val amount = amountText.replace(',', '.').toDoubleOrNull()
     val amountValid = amount != null && amount > 0
@@ -77,10 +95,68 @@ fun AddExpenseSheet(
                 .padding(horizontal = 24.dp)
                 .navigationBarsPadding()
                 .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Add expense", style = MaterialTheme.typography.titleLarge)
+
+            if (onQuickParse != null && reviewRows.isNotEmpty()) {
+                QuickEntryReview(
+                    rows = reviewRows,
+                    fromAi = reviewFromAi,
+                    onRowChange = { index, row -> reviewRows[index] = row },
+                    onRemove = { index -> reviewRows.removeAt(index) },
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = { reviewRows.clear() }, modifier = Modifier.height(56.dp)) { Text("Back") }
+                    Button(
+                        onClick = {
+                            onSaveMany(reviewRows.map { QuickEntryItem(it.title.trim(), it.amount!!, it.category) })
+                            close()
+                        },
+                        enabled = reviewRows.all { it.valid },
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                    ) {
+                        Text(if (reviewRows.size == 1) "Add 1 expense" else "Add ${reviewRows.size} expenses")
+                    }
+                }
+                return@Column
+            }
+
+            if (onQuickParse != null) {
+                QuickEntryInput(
+                    text = quickText,
+                    onTextChange = {
+                        quickText = it
+                        quickError = null
+                    },
+                    parsing = parsing,
+                    error = quickError,
+                    onSplit = {
+                        parsing = true
+                        scope.launch {
+                            val result = onQuickParse(quickText)
+                            parsing = false
+                            if (result.value.isEmpty()) {
+                                quickError = "No amounts found. Try \"200 chai, 450 auto\"."
+                            } else {
+                                reviewFromAi = result.fromAi
+                                reviewRows.clear()
+                                reviewRows += result.value.map { QuickRow(it.title, amountFormat.format(it.amount), it.category) }
+                            }
+                        }
+                    },
+                )
+                Text(
+                    "or fill in one expense",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             OutlinedTextField(
                 value = title,

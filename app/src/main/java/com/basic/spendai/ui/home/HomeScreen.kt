@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -37,7 +38,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,7 +75,8 @@ fun HomeScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit, onOpenDe
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    var duplicate by remember { mutableStateOf<Pair<Expense, () -> Unit>?>(null) }
+    // Possible duplicates waiting for "Add anyway / Skip"; quick entry can queue several.
+    val duplicates = remember { mutableStateListOf<Pair<Expense, () -> Unit>>() }
     val layoutInfo = rememberHomeLayoutInfo()
 
     Scaffold(
@@ -130,25 +135,38 @@ fun HomeScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit, onOpenDe
         AddExpenseSheet(
             onDismiss = { showAddSheet = false },
             onSave = { title, amount, category ->
-                scope.launch {
-                    val add = { viewModel.addExpense(title, amount, category) }
-                    val existing = viewModel.findDuplicate(amount, System.currentTimeMillis())
-                    if (existing == null) add() else duplicate = existing to add
-                }
+                scope.launch { addChecked(viewModel, title, amount, category, duplicates) }
+            },
+            onQuickParse = viewModel::parseQuickEntry,
+            onSaveMany = { items ->
+                scope.launch { items.forEach { addChecked(viewModel, it.title, it.amount, it.category, duplicates) } }
             },
         )
     }
 
-    duplicate?.let { (existing, add) ->
+    duplicates.firstOrNull()?.let { (existing, add) ->
         DuplicateDialog(
             existing = existing,
             onAddAnyway = {
                 add()
-                duplicate = null
+                duplicates.removeAt(0)
             },
-            onSkip = { duplicate = null },
+            onSkip = { duplicates.removeAt(0) },
         )
     }
+}
+
+/** Adds right away, or queues the "Looks like a duplicate" question if a similar expense exists. */
+private suspend fun addChecked(
+    viewModel: ExpenseViewModel,
+    title: String,
+    amount: Double,
+    category: Category,
+    duplicates: MutableList<Pair<Expense, () -> Unit>>,
+) {
+    val add = { viewModel.addExpense(title, amount, category) }
+    val existing = viewModel.findDuplicate(amount, System.currentTimeMillis())
+    if (existing == null) add() else duplicates += existing to add
 }
 
 @Composable
@@ -231,7 +249,17 @@ private fun TransactionsPane(
         if (expenses.isEmpty()) {
             EmptyState(Modifier.weight(1f))
         } else {
+            val listState = rememberLazyListState()
+            // The list keeps its position by key, so new expenses land above the visible rows.
+            // Scroll up when a newer one arrives (ids only grow; deletes don't trigger this).
+            val newestId = expenses.first().id
+            var lastNewestId by rememberSaveable { mutableLongStateOf(newestId) }
+            LaunchedEffect(newestId) {
+                if (newestId > lastNewestId) listState.animateScrollToItem(0)
+                lastNewestId = newestId
+            }
             LazyColumn(
+                state = listState,
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 112.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
