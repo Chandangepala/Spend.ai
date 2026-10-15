@@ -23,4 +23,11 @@ class Converters {
     @TypeConverter
     fun toAiState(name: String): AiState =
         AiState.entries.firstOrNull { it.name == name } ?: AiState.PENDING_AI
+
+    @TypeConverter
+    fun fromSource(source: CorrectionSource): String = source.name
+
+    @TypeConverter
+    fun toSource(name: String): CorrectionSource =
+        CorrectionSource.entries.firstOrNull { it.name == name } ?: CorrectionSource.RULES
 }

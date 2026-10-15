@@ -39,6 +39,24 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate3To4_addsEmptyLearningTables() {
+        helper.createDatabase(DB, 3).use { db ->
+            db.execSQL(
+                "INSERT INTO merchant_categories (merchant, category) VALUES ('swiggy', 'Food')"
+            )
+        }
+
+        helper.runMigrationsAndValidate(DB, 4, true, ExpenseDatabase.MIGRATION_3_4).use { db ->
+            db.query("SELECT COUNT(*) FROM category_corrections").use { assertEquals(0, it.apply { moveToFirst() }.getInt(0)) }
+            db.query("SELECT COUNT(*) FROM merchant_aliases").use { assertEquals(0, it.apply { moveToFirst() }.getInt(0)) }
+            db.query("SELECT category FROM merchant_categories WHERE merchant = 'swiggy'").use {
+                it.moveToFirst()
+                assertEquals("Food", it.getString(0))
+            }
+        }
+    }
+
     private companion object {
         const val DB = "migration-test.db"
     }

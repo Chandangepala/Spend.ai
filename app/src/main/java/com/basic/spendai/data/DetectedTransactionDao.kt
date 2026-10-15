@@ -31,6 +31,16 @@ interface DetectedTransactionDao {
     @Query("UPDATE detected_transactions SET merchant = :merchant WHERE id = :id")
     suspend fun updateMerchant(id: Long, merchant: String)
 
+    /**
+     * Applies a rename to every pending row from the same raw SMS merchant, or with the same old name
+     * (rows saved before raw merchants were stored have no rawMerchant).
+     */
+    @Query(
+        "UPDATE detected_transactions SET merchant = :merchant WHERE status = 'PENDING' AND " +
+            "(rawMerchant = :rawMerchant COLLATE NOCASE OR merchant = :oldName COLLATE NOCASE)"
+    )
+    suspend fun renamePending(rawMerchant: String?, oldName: String?, merchant: String)
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIgnore(transactions: List<DetectedTransaction>): List<Long>
 

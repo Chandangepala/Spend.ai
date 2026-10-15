@@ -9,14 +9,21 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [Expense::class, DetectedTransaction::class, MerchantCategory::class],
-    version = 3,
+    entities = [
+        Expense::class,
+        DetectedTransaction::class,
+        MerchantCategory::class,
+        CategoryCorrection::class,
+        MerchantAlias::class,
+    ],
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
 abstract class ExpenseDatabase : RoomDatabase() {
     abstract fun expenseDao(): ExpenseDao
     abstract fun detectedTransactionDao(): DetectedTransactionDao
+    abstract fun correctionDao(): CorrectionDao
 
     companion object {
         @Volatile
@@ -58,13 +65,36 @@ abstract class ExpenseDatabase : RoomDatabase() {
             }
         }
 
+        /** Phase 2 AI: a log of review decisions, and user-given names for raw SMS merchants. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS category_corrections (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        merchant TEXT,
+                        smsSnippet TEXT NOT NULL,
+                        suggested TEXT NOT NULL,
+                        chosen TEXT NOT NULL,
+                        source TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS merchant_aliases " +
+                        "(rawMerchant TEXT NOT NULL PRIMARY KEY, displayName TEXT NOT NULL)"
+                )
+            }
+        }
+
         fun get(context: Context): ExpenseDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     ExpenseDatabase::class.java,
                     "spendai.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
             }
     }
 }
