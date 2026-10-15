@@ -23,6 +23,10 @@ object SmsParser {
             """failed|declined|reversed|refund(ed)?|cashback)\b""",
         options,
     )
+    // Autopay / mandate *set-up* notices quote the limit ("amount INR 75,000") rather than a spend.
+    // Both parts are required so real autopay debits ("₹199 debited for autopay") still count.
+    private val mandateRegex = Regex("""\b(auto[\s-]?pay|e-?mandate|mandate|standing instruction)\b""", options)
+    private val setupRegex = Regex("""\b(activated|registered|created|set up|setup)\b""", options)
     private val accountHintRegex = Regex("""a/c|\bacct\b|account|\bcard\b|\bx+\d{2,}|\*\d{3,}|\bupi\b|\bvpa\b""", options)
 
     // Tried in order; the first that yields something name-like wins.
@@ -42,6 +46,7 @@ object SmsParser {
 
     fun parse(body: String): ParsedTransaction? {
         if (rejectRegex.containsMatchIn(body)) return null
+        if (mandateRegex.containsMatchIn(body) && setupRegex.containsMatchIn(body)) return null
         val debit = debitRegex.find(body) ?: return null
         // "Acct debited ...; AMAZON credited" is a debit, "credited ... by a/c debited" is not.
         val credit = creditRegex.find(body)

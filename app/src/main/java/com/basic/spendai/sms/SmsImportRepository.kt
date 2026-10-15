@@ -15,20 +15,23 @@ data class RawSms(val sender: String, val body: String, val timestamp: Long)
 /** Turns raw SMS into pending detections. Shared by the inbox scan and the live receiver. */
 class SmsImportRepository(context: Context) {
     private val dao = ExpenseDatabase.get(context).detectedTransactionDao()
+    private val correctionDao = ExpenseDatabase.get(context).correctionDao()
 
     /** Returns how many new detections were stored. */
     suspend fun process(messages: List<RawSms>): Int {
         val detections = messages.mapNotNull { sms ->
             val parsed = SmsParser.parse(sms.body) ?: return@mapNotNull null
-            val learned = parsed.merchant?.let { dao.getOverride(CategoryGuesser.merchantKey(it)) }
+            // A name the user gave this raw merchant before beats the parser's cleanup.
+            val merchant = aliasFor(parsed.rawMerchant) ?: parsed.merchant
+            val learned = merchant?.let { dao.getOverride(CategoryGuesser.merchantKey(it)) }
             DetectedTransaction(
                 smsKey = smsKey(sms.body),
                 sender = sms.sender,
                 body = sms.body,
                 amount = parsed.amount,
-                merchant = parsed.merchant,
+                merchant = merchant,
                 rawMerchant = parsed.rawMerchant,
-                suggestedCategory = CategoryGuesser.guess(parsed.merchant, sms.body, learned),
+                suggestedCategory = CategoryGuesser.guess(merchant, sms.body, learned),
                 timestamp = sms.timestamp,
                 // A learned category is final; everything else waits for the model (if the phone has one).
                 aiState = if (learned != null) AiState.RULES_ONLY else AiState.PENDING_AI,
@@ -48,7 +51,10 @@ class SmsImportRepository(context: Context) {
         // Scans run on every resume; don't let two passes enrich the same rows.
         if (!enrichLock.tryLock()) return
         try {
-            val enricher = SmsEnricher(provider) { dao.getOverride(it) }
+            val examples = correctionDao.recentCorrections(EXAMPLE_POOL)
+                .distinctBy { CategoryGuesser.merchantKey(it.merchant.orEmpty()) }
+                .take(SmsEnricher.Task.MAX_EXAMPLES)
+            val enricher = SmsEnricher(provider, examples) { dao.getOverride(it) }
             while (true) {
                 val batch = dao.pendingForAi(BATCH_SIZE)
                 if (batch.isEmpty()) return
@@ -58,7 +64,8 @@ class SmsImportRepository(context: Context) {
                         SmsEnricher.Outcome.NotATransaction -> dao.markHidden(detection.id)
                         is SmsEnricher.Outcome.Enriched -> dao.applyEnrichment(
                             id = detection.id,
-                            merchant = outcome.merchant,
+                            // The user's rename wins over the model's cleanup.
+                            merchant = aliasFor(detection.rawMerchant) ?: outcome.merchant,
                             category = outcome.category,
                             aiState = if (outcome.fromAi) AiState.AI_DONE else AiState.RULES_ONLY,
                         )
@@ -69,6 +76,9 @@ class SmsImportRepository(context: Context) {
             enrichLock.unlock()
         }
     }
+
+    private suspend fun aliasFor(rawMerchant: String?): String? =
+        rawMerchant?.let { correctionDao.getAlias(CategoryGuesser.merchantKey(it)) }
 
     // Bank SMS carry refs/balances, so the body alone identifies a message. The receiver and the
     // inbox report slightly different timestamps for the same SMS, which is why time isn't part of it.
@@ -81,6 +91,7 @@ class SmsImportRepository(context: Context) {
 
     private companion object {
         const val BATCH_SIZE = 20
+        const val EXAMPLE_POOL = 20
         val enrichLock = Mutex()
     }
 }

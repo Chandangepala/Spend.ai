@@ -1,6 +1,7 @@
 package com.basic.spendai.ai
 
 import com.basic.spendai.data.Category
+import com.basic.spendai.data.CategoryCorrection
 import com.basic.spendai.data.DetectedTransaction
 import com.basic.spendai.sms.CategoryGuesser
 import kotlinx.serialization.SerialName
@@ -12,6 +13,8 @@ import kotlinx.serialization.Serializable
  */
 class SmsEnricher(
     private val provider: AiProvider,
+    /** The user's recent corrections, shown to the model as examples to follow. */
+    private val examples: List<CategoryCorrection> = emptyList(),
     /** The category the user chose for this merchant before, if any. */
     private val learnedCategory: suspend (merchant: String) -> Category?,
 ) {
@@ -28,7 +31,8 @@ class SmsEnricher(
             learnedCategory(CategoryGuesser.merchantKey(name))?.let { return Outcome.Enriched(name, it, fromAi = false) }
         }
 
-        val result = Task.run(provider, Task.Input(detection.body, detection.merchant, detection.suggestedCategory))
+        val shots = examples.mapNotNull { c -> c.merchant?.let { it to c.chosen } }
+        val result = Task.run(provider, Task.Input(detection.body, detection.merchant, detection.suggestedCategory, shots))
         if (!result.replied) return Outcome.ModelUnavailable
         val reply = result.value
         if (!reply.isTransaction) return Outcome.NotATransaction
@@ -39,7 +43,13 @@ class SmsEnricher(
     }
 
     internal object Task : AiTask<Task.Input, Task.Output>() {
-        data class Input(val body: String, val rulesMerchant: String?, val rulesCategory: Category)
+        data class Input(
+            val body: String,
+            val rulesMerchant: String?,
+            val rulesCategory: Category,
+            /** (merchant, category) pairs the user chose; at most [MAX_EXAMPLES] are used. */
+            val examples: List<Pair<String, Category>> = emptyList(),
+        )
         data class Output(val isTransaction: Boolean, val merchant: String?, val category: Category)
 
         @Serializable
@@ -56,7 +66,15 @@ class SmsEnricher(
             |{"is_transaction": true or false, "merchant": "<shop or person name>", "category": "<one of: $CATEGORY_NAMES>"}
             |is_transaction is false for OTPs, offers, reminders, bills due, failed or upcoming payments.
             |merchant is the business name only, for example "UPI/P2M/PAYTM*SWIGGY8291" becomes "Swiggy". Use "" if unknown.
-            """.trimMargin() + "\nSMS: " + input.body.take(MAX_SMS_CHARS)
+            """.trimMargin() + examplesBlock(input.examples) + "\nSMS: " + input.body.take(MAX_SMS_CHARS)
+
+        private fun examplesBlock(examples: List<Pair<String, Category>>): String {
+            if (examples.isEmpty()) return ""
+            val lines = examples.take(MAX_EXAMPLES).joinToString("\n") { (merchant, category) ->
+                "- ${merchant.take(30)} -> ${category.name}"
+            }
+            return "\nThis user's own choices; follow them for the same or similar merchants:\n$lines"
+        }
 
         override fun parse(reply: String, input: Input): Output? {
             val decoded = AiJson.decode<Reply>(reply) ?: return null
@@ -76,5 +94,6 @@ class SmsEnricher(
         }
 
         private const val MAX_SMS_CHARS = 480
+        const val MAX_EXAMPLES = 5
     }
 }

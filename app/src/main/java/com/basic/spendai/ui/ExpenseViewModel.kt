@@ -6,17 +6,23 @@ import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 import com.basic.spendai.ai.AiProviders
 import com.basic.spendai.ai.AiStatus
+import com.basic.spendai.data.AccuracyStats
+import com.basic.spendai.data.AiState
 import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.data.Category
+import com.basic.spendai.data.CategoryCorrection
+import com.basic.spendai.data.CorrectionSource
 import com.basic.spendai.data.DetectedTransaction
 import com.basic.spendai.data.DetectionStatus
 import com.basic.spendai.data.Expense
 import com.basic.spendai.data.ExpenseDatabase
+import com.basic.spendai.data.MerchantAlias
 import com.basic.spendai.data.MerchantCategory
 import com.basic.spendai.data.SettingsRepository
 import com.basic.spendai.sms.CategoryGuesser
 import com.basic.spendai.sms.SmsImportRepository
 import com.basic.spendai.sms.SmsInboxScanner
+import com.basic.spendai.sms.SmsParser
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,6 +35,9 @@ import kotlinx.coroutines.launch
 data class AiUiState(
     val enabled: Boolean = true,
     val status: AiStatus = AiStatus.Unavailable,
+    /** Share of AI / rules suggestions the user kept unchanged over the last 30 days. */
+    val aiAccuracy: AccuracyStats = AccuracyStats(0, 0),
+    val rulesAccuracy: AccuracyStats = AccuracyStats(0, 0),
 )
 
 data class ExpenseUiState(
@@ -43,6 +52,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
     private val db = ExpenseDatabase.get(application)
     private val dao = db.expenseDao()
     private val detectedDao = db.detectedTransactionDao()
+    private val correctionDao = db.correctionDao()
     private val settings = SettingsRepository(application)
 
     val uiState: StateFlow<ExpenseUiState> =
@@ -62,8 +72,15 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
     private val aiStatus = MutableStateFlow<AiStatus>(AiStatus.Unavailable)
     private var aiDownload: Job? = null
 
+    private val accuracySince = System.currentTimeMillis() - ACCURACY_WINDOW_MS
+
     val aiState: StateFlow<AiUiState> =
-        combine(settings.aiEnabled, aiStatus) { enabled, status -> AiUiState(enabled, status) }
+        combine(
+            settings.aiEnabled,
+            aiStatus,
+            correctionDao.observeAccuracy(CorrectionSource.AI, accuracySince),
+            correctionDao.observeAccuracy(CorrectionSource.RULES, accuracySince),
+        ) { enabled, status, ai, rules -> AiUiState(enabled, status, ai, rules) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AiUiState())
 
     /** Re-checks whether Gemini Nano is ready; cheap, so it runs whenever Settings opens. */
@@ -129,10 +146,19 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { detectedDao.updateStatus(detection.id, DetectionStatus.PENDING) }
     }
 
+    /** Renames this row and remembers the name for the raw SMS merchant, so future SMS get it too. */
     fun renameDetection(detection: DetectedTransaction, merchant: String) {
         val name = merchant.trim()
         if (name.isEmpty()) return
-        viewModelScope.launch { detectedDao.updateMerchant(detection.id, name) }
+        viewModelScope.launch {
+            // Rows saved before raw merchants were stored: recover the raw text from the SMS itself.
+            val raw = detection.rawMerchant ?: SmsParser.parse(detection.body)?.rawMerchant
+            db.withTransaction {
+                detectedDao.updateMerchant(detection.id, name)
+                raw?.let { correctionDao.upsertAlias(MerchantAlias(CategoryGuesser.merchantKey(it), name)) }
+                detectedDao.renamePending(raw, detection.merchant, name)
+            }
+        }
     }
 
     fun acceptDetection(detection: DetectedTransaction, category: Category) {
@@ -163,6 +189,16 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                 )
             )
             detectedDao.updateStatus(detection.id, DetectionStatus.ACCEPTED)
+            // Every review is a data point: unchanged ones measure accuracy, changed ones teach the model.
+            correctionDao.insert(
+                CategoryCorrection(
+                    merchant = detection.merchant,
+                    smsSnippet = detection.body.take(SNIPPET_CHARS),
+                    suggested = detection.suggestedCategory,
+                    chosen = category,
+                    source = if (detection.aiState == AiState.AI_DONE) CorrectionSource.AI else CorrectionSource.RULES,
+                )
+            )
             // Remember a correction so this merchant's next SMS (and any still pending) get it.
             val merchant = detection.merchant
             if (merchant != null && category != detection.suggestedCategory) {
@@ -174,5 +210,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
     private companion object {
         const val DAY_MS = 24 * 60 * 60 * 1000L
+        const val ACCURACY_WINDOW_MS = 30 * DAY_MS
+        const val SNIPPET_CHARS = 160
     }
 }

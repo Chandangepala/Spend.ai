@@ -85,6 +85,31 @@ class SmsParserTest {
     }
 
     @Test
+    fun ignoresAutopaySetupNotices() {
+        // Real DCB SMS: quotes the mandate limit, not a spend.
+        assertNull(
+            SmsParser.parse(
+                "Dear customer, auto pay facility activated for DCB card ***342, amount INR 75,000.00, " +
+                    "beneficiary Google CloudTran Web Service - Part 001. Initial amount INR 2.00 has been debited " +
+                    "from your account. You will receive notification with the transaction amount prior to subsequent debits."
+            )
+        )
+        assertNull(SmsParser.parse("E-mandate registered on A/c XX1234 for Rs 1,499 max per month towards NETFLIX"))
+    }
+
+    @Test
+    fun keepsRealAutopayDebitsAndMandatedWording() {
+        val autopay = SmsParser.parse("Rs 199.00 debited from A/c XX1234 for autopay to NETFLIX on 14-10-26")
+        assertEquals(199.0, autopay!!.amount, 0.001)
+        // "mandated by RBI" is not a mandate set-up.
+        val hdfc = SmsParser.parse(
+            "Amount Spent: Rs.2597.5 with HDFC Bank Credit Card 7310 at POLICYBAZAAR on 2026-10-15:14:30:41 " +
+                "This transaction was completed without any additional authentication factor mandated by RBI."
+        )
+        assertEquals(2597.5, hdfc!!.amount, 0.001)
+    }
+
+    @Test
     fun needsAnAmountAndAnAccountHint() {
         assertNull(SmsParser.parse("Your order has been paid and will ship soon"))
         assertNull(SmsParser.parse("You spent Rs 200 at the fair, hope you had fun"))

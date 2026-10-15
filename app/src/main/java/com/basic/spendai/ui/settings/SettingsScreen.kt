@@ -182,8 +182,25 @@ private fun AiRow(ai: AiUiState, onEnabledChange: (Boolean) -> Unit, onDownload:
                     else -> Unit
                 }
             }
+            AccuracyLine(ai)
         }
     }
+}
+
+/** "Suggestions you kept unchanged (last 30 days): AI 87% of 23 · Rules 40% of 15". Local-only numbers. */
+@Composable
+private fun AccuracyLine(ai: AiUiState) {
+    val parts = buildList {
+        if (ai.aiAccuracy.total > 0) add("AI ${ai.aiAccuracy.percent}% of ${ai.aiAccuracy.total}")
+        if (ai.rulesAccuracy.total > 0) add("Rules ${ai.rulesAccuracy.percent}% of ${ai.rulesAccuracy.total}")
+    }
+    if (parts.isEmpty()) return
+    Text(
+        "Suggestions you kept unchanged (last 30 days): ${parts.joinToString(" · ")}",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 6.dp),
+    )
 }
 
 private fun downloadDetail(status: AiStatus.Downloading): String {
