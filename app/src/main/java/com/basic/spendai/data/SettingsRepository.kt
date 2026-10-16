@@ -25,6 +25,9 @@ class SettingsRepository(context: Context) {
     /** Master switch for on-device AI; when off every feature uses its rules. */
     val aiEnabled: Flow<Boolean> = dataStore.data.map { it[AI_ENABLED_KEY] ?: true }
 
+    /** Weekly summary notification; off until the user turns it on (and grants permission). */
+    val insightsNotify: Flow<Boolean> = dataStore.data.map { it[INSIGHTS_NOTIFY_KEY] ?: false }
+
     /** Inbox messages up to this time have already been scanned; null before the first scan. */
     val lastSmsScanAt: Flow<Long?> = dataStore.data.map { it[LAST_SMS_SCAN_KEY] }
 
@@ -40,6 +43,10 @@ class SettingsRepository(context: Context) {
         dataStore.edit { it[AI_ENABLED_KEY] = enabled }
     }
 
+    suspend fun setInsightsNotify(enabled: Boolean) {
+        dataStore.edit { it[INSIGHTS_NOTIFY_KEY] = enabled }
+    }
+
     suspend fun setLastSmsScanAt(timestamp: Long) {
         dataStore.edit { it[LAST_SMS_SCAN_KEY] = timestamp }
     }
@@ -49,5 +56,6 @@ class SettingsRepository(context: Context) {
         val SMS_IMPORT_KEY = booleanPreferencesKey("sms_import_enabled")
         val LAST_SMS_SCAN_KEY = longPreferencesKey("last_sms_scan_at")
         val AI_ENABLED_KEY = booleanPreferencesKey("ai_enabled")
+        val INSIGHTS_NOTIFY_KEY = booleanPreferencesKey("insights_notify")
     }
 }

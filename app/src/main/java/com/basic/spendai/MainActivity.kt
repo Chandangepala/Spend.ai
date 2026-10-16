@@ -33,9 +33,13 @@ class MainActivity : ComponentActivity() {
                 val viewModel: ExpenseViewModel = viewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
                 val aiState by viewModel.aiState.collectAsStateWithLifecycle()
+                val insightsNotify by viewModel.insightsNotify.collectAsStateWithLifecycle()
                 var screen by rememberSaveable { mutableStateOf(Screen.Home) }
 
-                LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.scanSms() }
+                LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+                    viewModel.scanSms()
+                    viewModel.refreshInsights()
+                }
 
                 CompositionLocalProvider(LocalCurrency provides state.currency) {
                     when (screen) {
@@ -50,6 +54,8 @@ class MainActivity : ComponentActivity() {
                                 ai = aiState,
                                 onAiEnabledChange = viewModel::setAiEnabled,
                                 onDownloadAi = viewModel::downloadAiModel,
+                                insightsNotify = insightsNotify,
+                                onInsightsNotifyChange = viewModel::setInsightsNotify,
                             )
                         }
 

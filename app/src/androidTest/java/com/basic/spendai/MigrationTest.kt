@@ -57,6 +57,22 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate4To5_addsWeeklyInsightsAndKeepsExpenses() {
+        helper.createDatabase(DB, 4).use { db ->
+            db.execSQL("INSERT INTO expenses (title, amount, category, timestamp) VALUES ('Lunch', 250.0, 'Food', 1000)")
+        }
+
+        helper.runMigrationsAndValidate(DB, 5, true, ExpenseDatabase.MIGRATION_4_5).use { db ->
+            db.query("SELECT COUNT(*) FROM weekly_insights").use { assertEquals(0, it.apply { moveToFirst() }.getInt(0)) }
+            db.query("SELECT title, amount FROM expenses").use {
+                it.moveToFirst()
+                assertEquals("Lunch", it.getString(0))
+                assertEquals(250.0, it.getDouble(1), 0.001)
+            }
+        }
+    }
+
     private companion object {
         const val DB = "migration-test.db"
     }

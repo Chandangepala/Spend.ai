@@ -88,6 +88,7 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val categoryOrder by viewModel.categoryOrder.collectAsStateWithLifecycle()
+    val insight by viewModel.weeklyInsight.collectAsStateWithLifecycle()
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Expense?>(null) }
     val scope = rememberCoroutineScope()
@@ -164,6 +165,9 @@ fun HomeScreen(
                     onReview = onOpenDetected,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
                 )
+            }
+            insight?.let {
+                InsightCard(it, Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp))
             }
             HomeContent(
                 state = state,

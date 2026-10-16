@@ -5,7 +5,6 @@ import com.basic.spendai.stats.Metric
 import com.basic.spendai.stats.PeriodStats
 import com.basic.spendai.stats.SpendAnswer
 import com.basic.spendai.util.formatCurrency
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -26,8 +25,7 @@ object AnswerWriter : AiTask<AnswerWriter.Input, String>() {
 
     override fun parse(reply: String, input: Input): String? {
         val text = reply.trim().trim('"').takeIf { it.length in 10..MAX_REPLY_CHARS } ?: return null
-        val allowed = numbersIn(facts(input) + " " + input.question)
-        return text.takeIf { numbersIn(it).all { n -> allowed.any { abs(it - n) < 0.005 } } }
+        return text.takeIf { NumberCheck.onlyKnownNumbers(it, facts(input) + " " + input.question) }
     }
 
     override fun fallback(input: Input) = template(input)
@@ -98,11 +96,6 @@ object AnswerWriter : AiTask<AnswerWriter.Input, String>() {
             else -> "the same"
         }
     }
-
-    private val numberRegex = Regex("""\d[\d,]*(?:\.\d+)?""")
-
-    private fun numbersIn(text: String) =
-        numberRegex.findAll(text).mapNotNull { it.value.replace(",", "").toDoubleOrNull() }.toList()
 
     private const val MAX_REPLY_CHARS = 300
 }
