@@ -178,6 +178,11 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { dao.delete(expense) }
     }
 
+    /** Puts a just-deleted expense back with its original id and date (the "Undo" after a swipe). */
+    fun restoreExpense(expense: Expense) {
+        viewModelScope.launch { dao.insert(expense) }
+    }
+
     fun setSmsImportEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settings.setSmsImportEnabled(enabled)

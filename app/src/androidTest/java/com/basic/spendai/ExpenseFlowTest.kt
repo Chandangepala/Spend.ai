@@ -1,6 +1,7 @@
 package com.basic.spendai
 
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -79,6 +80,33 @@ class ExpenseFlowTest {
         waitUntilGone(hasText("Lunch"))
         waitUntilAny(hasText(formatCurrency(3.0, AppCurrency.USD)))
         composeRule.onNodeWithText("1 transaction", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun swipeDelete_canBeUndoneWithinThreeSeconds() {
+        addExpense("Lunch", "12.50", "Food")
+        waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
+
+        composeRule.onNodeWithText("Lunch", useUnmergedTree = true).performTouchInput { swipeLeft() }
+        waitUntilOne(hasText("Deleted \"Lunch\""))
+        composeRule.onNodeWithText("Undo").performClick()
+
+        waitUntilAny(hasText("Lunch"))
+        waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
+        composeRule.onNodeWithText("1 transaction", useUnmergedTree = true).assertExists()
+        // The restored row must be back on screen, not left in its swiped-away position.
+        composeRule.onNodeWithText("Lunch", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun undoDisappearsAfterThreeSeconds() {
+        addExpense("Lunch", "12.50", "Food")
+        waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
+
+        composeRule.onNodeWithText("Lunch", useUnmergedTree = true).performTouchInput { swipeLeft() }
+        waitUntilOne(hasText("Undo"))
+        composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasText("Undo")).fetchSemanticsNodes().isEmpty() }
+        waitUntilOne(hasText("No expenses yet"))
     }
 
     @Test
