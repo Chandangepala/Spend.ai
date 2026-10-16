@@ -78,6 +78,8 @@ class ExpenseFlowTest {
         composeRule.onNodeWithText("2 transactions", useUnmergedTree = true).assertExists()
 
         composeRule.onNodeWithText("Lunch", useUnmergedTree = true).performTouchInput { swipeLeft() }
+        waitUntilOne(hasText("Delete"))
+        composeRule.onNodeWithText("Delete", useUnmergedTree = true).performClick()
         waitUntilGone(hasText("Lunch"))
         waitUntilAny(hasText(formatCurrency(3.0, AppCurrency.USD)))
         composeRule.onNodeWithText("1 transaction", useUnmergedTree = true).assertExists()
@@ -89,6 +91,8 @@ class ExpenseFlowTest {
         waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
 
         composeRule.onNodeWithText("Lunch", useUnmergedTree = true).performTouchInput { swipeLeft() }
+        waitUntilOne(hasText("Delete"))
+        composeRule.onNodeWithText("Delete", useUnmergedTree = true).performClick()
         waitUntilOne(hasText("Deleted \"Lunch\""))
         composeRule.onNodeWithText("Undo").performClick()
 
@@ -105,6 +109,8 @@ class ExpenseFlowTest {
         waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
 
         composeRule.onNodeWithText("Lunch", useUnmergedTree = true).performTouchInput { swipeLeft() }
+        waitUntilOne(hasText("Delete"))
+        composeRule.onNodeWithText("Delete", useUnmergedTree = true).performClick()
         waitUntilOne(hasText("Undo"))
         composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasText("Undo")).fetchSemanticsNodes().isEmpty() }
         waitUntilOne(hasText("No expenses yet"))

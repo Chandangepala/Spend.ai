@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -37,11 +36,8 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,8 +52,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -331,6 +325,9 @@ private fun TransactionsPane(
                 if (newestId > lastNewestId) listState.animateScrollToItem(0)
                 lastNewestId = newestId
             }
+            // At most one row shows its Delete action at a time.
+            var openId by rememberSaveable { mutableStateOf<Long?>(null) }
+            LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress) openId = null }
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f),
@@ -343,7 +340,14 @@ private fun TransactionsPane(
                     key(undoCount) {
                         SwipeToDeleteItem(
                             expense = expense,
-                            onDelete = { onDelete(expense) },
+                            open = openId == expense.id,
+                            onOpenChange = { isOpen ->
+                                if (isOpen) openId = expense.id else if (openId == expense.id) openId = null
+                            },
+                            onDelete = {
+                                openId = null
+                                onDelete(expense)
+                            },
                             onEdit = { onEdit(expense) },
                             modifier = Modifier.animateItem(),
                         )
@@ -355,36 +359,17 @@ private fun TransactionsPane(
 }
 
 @Composable
-private fun SwipeToDeleteItem(expense: Expense, onDelete: () -> Unit, onEdit: () -> Unit, modifier: Modifier = Modifier) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value != SwipeToDismissBoxValue.Settled) {
-                onDelete()
-                true
-            } else {
-                false
-            }
-        }
-    )
-    SwipeToDismissBox(
-        state = dismissState,
-        modifier = modifier,
-        backgroundContent = {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.errorContainer)
-                    .padding(horizontal = 24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Icon(Icons.Rounded.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onErrorContainer)
-                Icon(Icons.Rounded.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
-            }
-        },
-    ) {
-        TransactionItem(expense, onClick = onEdit)
+private fun SwipeToDeleteItem(
+    expense: Expense,
+    open: Boolean,
+    onOpenChange: (Boolean) -> Unit,
+    onDelete: () -> Unit,
+    onEdit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SwipeToRevealDelete(open = open, onOpenChange = onOpenChange, onDelete = onDelete, modifier = modifier) { closeInstead ->
+        // While the Delete action is showing, a tap on the row just closes it.
+        TransactionItem(expense, onClick = closeInstead ?: onEdit)
     }
 }
 
