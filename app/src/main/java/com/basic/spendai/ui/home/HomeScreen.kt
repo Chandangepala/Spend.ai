@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ReceiptLong
@@ -71,7 +72,12 @@ import com.basic.spendai.ui.components.clay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit, onOpenDetected: () -> Unit = {}) {
+fun HomeScreen(
+    viewModel: ExpenseViewModel,
+    onOpenSettings: () -> Unit,
+    onOpenDetected: () -> Unit = {},
+    onOpenAsk: () -> Unit = {},
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -92,6 +98,9 @@ fun HomeScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit, onOpenDe
                     )
                 },
                 actions = {
+                    IconButton(onClick = onOpenAsk) {
+                        Icon(Icons.AutoMirrored.Rounded.Chat, contentDescription = "Ask your spends")
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Rounded.Settings, contentDescription = "Settings")
                     }

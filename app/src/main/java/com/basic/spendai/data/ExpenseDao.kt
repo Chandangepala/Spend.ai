@@ -21,6 +21,10 @@ interface ExpenseDao {
     )
     suspend fun findNear(minAmount: Double, maxAmount: Double, from: Long, to: Long): List<Expense>
 
+    /** Expenses with [from] <= timestamp < [until]. */
+    @Query("SELECT * FROM expenses WHERE timestamp >= :from AND timestamp < :until ORDER BY timestamp DESC")
+    suspend fun between(from: Long, until: Long): List<Expense>
+
     @Insert
     suspend fun insert(expense: Expense)
 

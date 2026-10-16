@@ -11,7 +11,9 @@ import com.basic.spendai.ai.QuickEntryItem
 import com.basic.spendai.ai.QuickEntryParser
 import com.basic.spendai.ai.ReceiptItemizer
 import com.basic.spendai.ai.ReceiptResult
+import com.basic.spendai.ai.SpendQueryTranslator
 import com.basic.spendai.ai.AiStatus
+import com.basic.spendai.ai.AnswerWriter
 import com.basic.spendai.data.AccuracyStats
 import com.basic.spendai.data.AiState
 import com.basic.spendai.data.AppCurrency
@@ -31,6 +33,8 @@ import com.basic.spendai.sms.CategoryGuesser
 import com.basic.spendai.sms.SmsImportRepository
 import com.basic.spendai.sms.SmsInboxScanner
 import com.basic.spendai.sms.SmsParser
+import com.basic.spendai.stats.SpendAnswer
+import com.basic.spendai.stats.SpendQueryExecutor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,6 +60,16 @@ data class ExpenseUiState(
     val currency: AppCurrency = AppCurrency.default(),
     val pendingDetections: List<DetectedTransaction> = emptyList(),
     val smsImportEnabled: Boolean = false,
+)
+
+/** One question and its answer on the Ask screen. */
+data class AskEntry(
+    val id: Long,
+    val question: String,
+    val sentence: String,
+    val answer: SpendAnswer,
+    /** The model translated the question or wrote the sentence (numbers always come from code). */
+    val fromAi: Boolean,
 )
 
 class ExpenseViewModel(application: Application) : AndroidViewModel(application) {
@@ -130,6 +144,30 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         ReceiptPhotos.delete(app, uri)
         if (text == null) return null
         return withContext(Dispatchers.Default) { ReceiptItemizer.run(AiProviders.best(app), text) }
+    }
+
+    private val _askHistory = MutableStateFlow<List<AskEntry>>(emptyList())
+    val askHistory: StateFlow<List<AskEntry>> = _askHistory
+    private val _asking = MutableStateFlow(false)
+    val asking: StateFlow<Boolean> = _asking
+
+    /** Question -> query (model or rules) -> numbers (code) -> sentence (model or template). */
+    fun ask(question: String) {
+        if (_asking.value) return
+        _asking.value = true
+        viewModelScope.launch {
+            try {
+                val provider = AiProviders.best(getApplication())
+                val query = withContext(Dispatchers.Default) { SpendQueryTranslator().run(provider, question) }
+                val answer = SpendQueryExecutor(dao::between).run(query.value)
+                val input = AnswerWriter.Input(question, answer, settings.currency.first())
+                val sentence = withContext(Dispatchers.Default) { AnswerWriter.run(provider, input) }
+                val entry = AskEntry(System.nanoTime(), question, sentence.value, answer, query.fromAi || sentence.fromAi)
+                _askHistory.value = listOf(entry) + _askHistory.value
+            } finally {
+                _asking.value = false
+            }
+        }
     }
 
     fun setCurrency(currency: AppCurrency) {

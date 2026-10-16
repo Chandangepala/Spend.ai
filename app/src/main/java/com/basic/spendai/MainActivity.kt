@@ -15,13 +15,14 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.basic.spendai.ui.ExpenseViewModel
+import com.basic.spendai.ui.ask.AskScreen
 import com.basic.spendai.ui.detected.DetectedTransactionsScreen
 import com.basic.spendai.ui.home.HomeScreen
 import com.basic.spendai.ui.settings.SettingsScreen
 import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.util.LocalCurrency
 
-private enum class Screen { Home, Settings, Detected }
+private enum class Screen { Home, Settings, Detected, Ask }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,10 +68,17 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        Screen.Ask -> {
+                            val history by viewModel.askHistory.collectAsStateWithLifecycle()
+                            val asking by viewModel.asking.collectAsStateWithLifecycle()
+                            AskScreen(history, asking, onAsk = viewModel::ask, onBack = { screen = Screen.Home })
+                        }
+
                         Screen.Home -> HomeScreen(
                             viewModel,
                             onOpenSettings = { screen = Screen.Settings },
                             onOpenDetected = { screen = Screen.Detected },
+                            onOpenAsk = { screen = Screen.Ask },
                         )
                     }
                 }
