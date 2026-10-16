@@ -70,7 +70,7 @@ class ExpenseFlowTest {
     fun addAndDeleteExpenses_updatesListAndTotal() {
         waitUntilOne(hasText("No expenses yet"))
 
-        addExpense("Lunch", "12.50", "Food")
+        addExpense("Lunch", "12.50", "Dining & Drinks")
         waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
 
         addExpense("Metro", "3", "Transport")
@@ -85,7 +85,7 @@ class ExpenseFlowTest {
 
     @Test
     fun swipeDelete_canBeUndoneWithinThreeSeconds() {
-        addExpense("Lunch", "12.50", "Food")
+        addExpense("Lunch", "12.50", "Dining & Drinks")
         waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
 
         composeRule.onNodeWithText("Lunch", useUnmergedTree = true).performTouchInput { swipeLeft() }
@@ -101,7 +101,7 @@ class ExpenseFlowTest {
 
     @Test
     fun undoDisappearsAfterThreeSeconds() {
-        addExpense("Lunch", "12.50", "Food")
+        addExpense("Lunch", "12.50", "Dining & Drinks")
         waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
 
         composeRule.onNodeWithText("Lunch", useUnmergedTree = true).performTouchInput { swipeLeft() }
@@ -112,7 +112,7 @@ class ExpenseFlowTest {
 
     @Test
     fun tappingAnExpense_editsItInPlace() {
-        addExpense("Lunch", "12.50", "Food")
+        addExpense("Lunch", "12.50", "Dining & Drinks")
         waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
 
         composeRule.onNodeWithText("Lunch", useUnmergedTree = true).performClick()
@@ -137,7 +137,7 @@ class ExpenseFlowTest {
 
     @Test
     fun changingCurrencyInSettings_updatesShownAmounts() {
-        addExpense("Lunch", "12.50", "Food")
+        addExpense("Lunch", "12.50", "Dining & Drinks")
         waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
 
         composeRule.onNodeWithContentDescription("Settings").performClick()

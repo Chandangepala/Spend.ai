@@ -41,8 +41,8 @@ class QuickEntryParserTest {
 
     @Test
     fun currencyMarkersAndGroupingCommas() {
-        assertEquals(listOf(QuickEntryItem("Groceries", 1200.0, Category.Food)), Rules.parse("₹1,200 groceries"))
-        assertEquals(listOf(QuickEntryItem("Rent", 100000.0, Category.Bills)), Rules.parse("rent Rs 1,00,000"))
+        assertEquals(listOf(QuickEntryItem("Groceries", 1200.0, Category.Groceries)), Rules.parse("₹1,200 groceries"))
+        assertEquals(listOf(QuickEntryItem("Rent", 100000.0, Category.Home)), Rules.parse("rent Rs 1,00,000"))
         assertEquals(listOf(1200.0, 450.0), Rules.amountsIn("₹1,200 groceries, 450 auto"))
     }
 
@@ -81,7 +81,7 @@ class QuickEntryParserTest {
 
     @Test
     fun offListCategoryUsesRulesForThatItem() = runTest {
-        val provider = FakeAiProvider("""[{"title":"Auto","amount":450,"category":"Travel"}]""")
+        val provider = FakeAiProvider("""[{"title":"Auto","amount":450,"category":"Commute"}]""")
         val result = QuickEntryParser.run(provider, "450 auto")
         assertTrue(result.fromAi)
         assertEquals(Category.Transport, result.value.single().category)

@@ -35,10 +35,16 @@ abstract class AiTask<I, O> {
     }
 
     companion object {
-        /** The fixed list every prompt offers; replies outside it are rejected. */
-        val CATEGORY_NAMES: String = Category.entries.joinToString(", ") { it.name }
+        /** The fixed list every prompt offers (as users see it); replies outside it are rejected. */
+        val CATEGORY_NAMES: String = Category.entries.joinToString(", ") { it.label }
 
-        fun categoryOrNull(name: String?): Category? =
-            Category.entries.firstOrNull { it.name.equals(name?.trim(), ignoreCase = true) }
+        /** Accepts the label ("Dining & Drinks", "dining and drinks") or the stored name ("Food"). */
+        fun categoryOrNull(name: String?): Category? {
+            val key = name?.let(::normalize)?.takeIf { it.isNotEmpty() } ?: return null
+            return Category.entries.firstOrNull { normalize(it.label) == key || normalize(it.name) == key }
+        }
+
+        private fun normalize(text: String) =
+            text.lowercase().replace(" and ", " ").replace("&", " ").filter(Char::isLetter)
     }
 }

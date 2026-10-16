@@ -3,6 +3,8 @@ package com.basic.spendai.ui.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +34,7 @@ import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TotalSpentCard(
     total: Double,
@@ -94,7 +97,8 @@ fun TotalSpentCard(
                 }
                 if (showLegend) {
                     Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Wraps: labels like "Dining & Drinks" don't all fit on one line on a phone.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         shares.take(3).forEach { (category, _) -> LegendDot(category, onCard) }
                     }
                 }

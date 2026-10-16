@@ -87,6 +87,7 @@ fun HomeScreen(
     onOpenAsk: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val categoryOrder by viewModel.categoryOrder.collectAsStateWithLifecycle()
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Expense?>(null) }
     val scope = rememberCoroutineScope()
@@ -183,6 +184,7 @@ fun HomeScreen(
             },
             onQuickParse = viewModel::parseQuickEntry,
             onScanReceipt = viewModel::scanReceipt,
+            categoryOrder = categoryOrder,
             onSaveMany = { items ->
                 scope.launch { items.forEach { addChecked(viewModel, it.title, it.amount, it.category, duplicates) } }
             },
@@ -197,6 +199,7 @@ fun HomeScreen(
                 onSave = { _, _, _ -> },
                 editing = expense,
                 onUpdate = viewModel::updateExpense,
+                categoryOrder = categoryOrder,
             )
         }
     }

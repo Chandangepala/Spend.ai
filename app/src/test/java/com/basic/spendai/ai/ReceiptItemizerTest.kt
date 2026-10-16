@@ -72,7 +72,7 @@ class ReceiptItemizerTest {
     fun merchantIsFirstNameLikeLineAndDrivesCategory() = runTest {
         assertEquals("Dmart", Rules.findMerchant(supermarket))
         assertEquals("Apollo Pharmacy", Rules.findMerchant(pharmacy))
-        assertEquals(Category.Shopping, ReceiptItemizer.run(RulesOnlyProvider, supermarket).value.category)
+        assertEquals(Category.Groceries, ReceiptItemizer.run(RulesOnlyProvider, supermarket).value.category)
         assertEquals(Category.Food, Rules.categoryFor(Rules.findMerchant(restaurant), restaurant))
         assertEquals(Category.Health, Rules.categoryFor("Apollo Pharmacy", pharmacy))
     }

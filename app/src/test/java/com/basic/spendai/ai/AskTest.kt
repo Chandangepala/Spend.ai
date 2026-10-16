@@ -59,10 +59,10 @@ class AskTest {
     fun unknownPeriodOrCategoryFallsBackToRules() = runTest {
         val badPeriod = FakeAiProvider("""{"metric":"total","categories":[],"period":"last_quarter","compare_to":null}""")
         assertFalse(translator.run(badPeriod, "spend last month").fromAi)
-        val badCategory = FakeAiProvider("""{"metric":"total","categories":["Groceries"],"period":"this_month"}""")
+        val badCategory = FakeAiProvider("""{"metric":"total","categories":["Snacks"],"period":"this_month"}""")
         val result = translator.run(badCategory, "groceries this month")
         assertFalse(result.fromAi)
-        assertEquals(setOf(Category.Food), result.value.categories)
+        assertEquals(setOf(Category.Groceries), result.value.categories)
     }
 
     // --- Numbers -> sentence ---
@@ -77,7 +77,7 @@ class AskTest {
     @Test
     fun templateSaysWhichPeriodWasMore() {
         val text = AnswerWriter.template(input)
-        assertTrue(text, text.startsWith("You spent ₹4,200.00 on Food last month, vs ₹3,100.00 this month"))
+        assertTrue(text, text.startsWith("You spent ₹4,200.00 on Dining & Drinks last month, vs ₹3,100.00 this month"))
         assertTrue(text, text.contains("(last month was 35% more)"))
     }
 
@@ -85,7 +85,7 @@ class AskTest {
     fun zeroSideSaysNothingInsteadOfAHundredPercent() {
         val empty = answer.copy(primary = PeriodStats(Period.LAST_MONTH, 0.0, 0, emptyList()))
         val text = AnswerWriter.template(input.copy(answer = empty))
-        assertEquals("You spent nothing on Food last month, vs ₹3,100.00 this month.", text)
+        assertEquals("You spent nothing on Dining & Drinks last month, vs ₹3,100.00 this month.", text)
         assertFalse(AnswerWriter.facts(input.copy(answer = empty)).contains("Change"))
     }
 
@@ -108,7 +108,7 @@ class AskTest {
     @Test
     fun factsGiveTheModelOnlyComputedNumbers() {
         val facts = AnswerWriter.facts(input)
-        assertTrue(facts, facts.contains("Last month (Food): total ₹4,200.00, 12 expenses, average ₹350.00"))
+        assertTrue(facts, facts.contains("Last month (Dining & Drinks): total ₹4,200.00, 12 expenses, average ₹350.00"))
         assertTrue(facts, facts.contains("Change: Last month is 35% more than This month"))
     }
 }

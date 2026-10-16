@@ -29,9 +29,15 @@ interface ExpenseDao {
     @Insert
     suspend fun insert(expense: Expense)
 
+    /** How many expenses use each category; drives the chip order in the add/edit sheet. */
+    @Query("SELECT category, COUNT(*) AS count FROM expenses GROUP BY category")
+    fun observeCategoryCounts(): Flow<List<CategoryCount>>
+
     @Update
     suspend fun update(expense: Expense)
 
     @Delete
     suspend fun delete(expense: Expense)
 }
+
+data class CategoryCount(val category: Category, val count: Int)

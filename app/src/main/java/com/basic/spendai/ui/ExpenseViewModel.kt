@@ -35,6 +35,7 @@ import com.basic.spendai.sms.SmsInboxScanner
 import com.basic.spendai.sms.SmsParser
 import com.basic.spendai.stats.SpendAnswer
 import com.basic.spendai.stats.SpendQueryExecutor
+import com.basic.spendai.ui.home.orderCategories
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -89,6 +91,12 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         ) { expenses, total, currency, pending, smsEnabled ->
             ExpenseUiState(expenses, total ?: 0.0, currency, pending, smsEnabled)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExpenseUiState())
+
+    /** Categories most-used first, for the add/edit sheet's chips. */
+    val categoryOrder: StateFlow<List<Category>> =
+        dao.observeCategoryCounts()
+            .map { counts -> orderCategories(counts.associate { it.category to it.count }) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), orderCategories(emptyMap()))
 
     val hiddenDetections: StateFlow<List<DetectedTransaction>> =
         detectedDao.observeHidden().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

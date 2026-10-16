@@ -36,7 +36,7 @@ class SmsEnricherTest {
 
     @Test
     fun offListCategoryKeepsRulesGuess() = runTest {
-        val provider = FakeAiProvider("""{"is_transaction": true, "merchant": "Swiggy", "category": "Groceries"}""")
+        val provider = FakeAiProvider("""{"is_transaction": true, "merchant": "Swiggy", "category": "Snacks"}""")
         val outcome = enricher(provider).enrich(detection(category = Category.Shopping))
         assertEquals(Outcome.Enriched("Swiggy", Category.Shopping, fromAi = true), outcome)
     }
