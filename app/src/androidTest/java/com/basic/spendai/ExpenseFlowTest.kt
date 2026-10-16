@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
@@ -107,6 +108,22 @@ class ExpenseFlowTest {
         waitUntilOne(hasText("Undo"))
         composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasText("Undo")).fetchSemanticsNodes().isEmpty() }
         waitUntilOne(hasText("No expenses yet"))
+    }
+
+    @Test
+    fun tappingAnExpense_editsItInPlace() {
+        addExpense("Lunch", "12.50", "Food")
+        waitUntilAny(hasText(formatCurrency(12.5, AppCurrency.USD)))
+
+        composeRule.onNodeWithText("Lunch", useUnmergedTree = true).performClick()
+        waitUntilOne(hasText("Edit expense"))
+        composeRule.onNode(hasSetTextAction() and hasText("12.5")).performTextClearance()
+        composeRule.onNode(hasSetTextAction() and hasText("Amount")).performTextInput("20")
+        composeRule.onNodeWithText("Save changes", useUnmergedTree = true).performClick()
+
+        waitUntilAny(hasText(formatCurrency(20.0, AppCurrency.USD)))
+        waitUntilGone(hasText(formatCurrency(12.5, AppCurrency.USD)))
+        composeRule.onNodeWithText("1 transaction", useUnmergedTree = true).assertExists()
     }
 
     @Test

@@ -88,6 +88,7 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Expense?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var undoJob by remember { mutableStateOf<Job?>(null) }
@@ -169,6 +170,7 @@ fun HomeScreen(
                 onDelete = deleteWithUndo,
                 modifier = Modifier.weight(1f),
                 undoCount = undoCount,
+                onEdit = { editing = it },
             )
         }
     }
@@ -185,6 +187,18 @@ fun HomeScreen(
                 scope.launch { items.forEach { addChecked(viewModel, it.title, it.amount, it.category, duplicates) } }
             },
         )
+    }
+
+    editing?.let { expense ->
+        // Keyed so tapping another row while one is open starts from that row's values.
+        key(expense.id) {
+            AddExpenseSheet(
+                onDismiss = { editing = null },
+                onSave = { _, _, _ -> },
+                editing = expense,
+                onUpdate = viewModel::updateExpense,
+            )
+        }
     }
 
     duplicates.firstOrNull()?.let { (existing, add) ->
@@ -222,6 +236,7 @@ fun HomeContent(
     onDelete: (Expense) -> Unit,
     modifier: Modifier = Modifier,
     undoCount: Int = 0,
+    onEdit: (Expense) -> Unit = {},
 ) {
     when (layoutInfo.layout) {
         HomeLayout.SinglePane -> Column(modifier.fillMaxSize()) {
@@ -230,7 +245,7 @@ fun HomeContent(
                 expenses = state.expenses,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
-            TransactionsPane(state.expenses, onDelete, Modifier.weight(1f), undoCount)
+            TransactionsPane(state.expenses, onDelete, Modifier.weight(1f), undoCount, onEdit)
         }
 
         HomeLayout.TwoPane -> HingeAwareRow(
@@ -246,6 +261,7 @@ fun HomeContent(
                         .wrapContentWidth(Alignment.CenterHorizontally)
                         .widthIn(max = 720.dp),
                     undoCount = undoCount,
+                    onEdit = onEdit,
                 )
             },
         )
@@ -254,7 +270,7 @@ fun HomeContent(
             hinge = layoutInfo.hinge,
             modifier = modifier,
             top = { SummaryPane(state, Modifier.fillMaxSize(), sideBySide = true) },
-            bottom = { TransactionsPane(state.expenses, onDelete, Modifier.fillMaxSize(), undoCount) },
+            bottom = { TransactionsPane(state.expenses, onDelete, Modifier.fillMaxSize(), undoCount, onEdit) },
         )
     }
 }
@@ -286,6 +302,7 @@ private fun TransactionsPane(
     onDelete: (Expense) -> Unit,
     modifier: Modifier = Modifier,
     undoCount: Int = 0,
+    onEdit: (Expense) -> Unit = {},
 ) {
     Column(modifier) {
         Text(
@@ -320,6 +337,7 @@ private fun TransactionsPane(
                         SwipeToDeleteItem(
                             expense = expense,
                             onDelete = { onDelete(expense) },
+                            onEdit = { onEdit(expense) },
                             modifier = Modifier.animateItem(),
                         )
                     }
@@ -330,7 +348,7 @@ private fun TransactionsPane(
 }
 
 @Composable
-private fun SwipeToDeleteItem(expense: Expense, onDelete: () -> Unit, modifier: Modifier = Modifier) {
+private fun SwipeToDeleteItem(expense: Expense, onDelete: () -> Unit, onEdit: () -> Unit, modifier: Modifier = Modifier) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value != SwipeToDismissBoxValue.Settled) {
@@ -359,7 +377,7 @@ private fun SwipeToDeleteItem(expense: Expense, onDelete: () -> Unit, modifier: 
             }
         },
     ) {
-        TransactionItem(expense)
+        TransactionItem(expense, onClick = onEdit)
     }
 }
 
