@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -208,6 +210,7 @@ private fun RenameDialog(initial: String, onSave: (String) -> Unit, onCancel: ()
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DetectedItem(
     detection: DetectedTransaction,
@@ -280,17 +283,21 @@ private fun DetectedItem(
                 modifier = Modifier.padding(top = 10.dp),
             )
 
-            Row(
+            // A FlowRow, not a Row: a long category label ("EMI & Finance") plus both buttons doesn't fit on
+            // a phone, and a Row squeezed the last button until "Add" wrapped letter by letter. Here the
+            // buttons move to their own line (kept together, on the right) whenever they don't fit.
+            FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 if (!hiddenMode) Box {
                     AssistChip(
                         onClick = { menuOpen = true },
-                        label = { Text(category.label) },
+                        label = { Text(category.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         leadingIcon = { Icon(category.icon, contentDescription = null, tint = category.color) },
                         trailingIcon = { Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Change category") },
                     )
@@ -307,12 +314,17 @@ private fun DetectedItem(
                         }
                     }
                 }
-                Spacer(Modifier.weight(1f))
-                if (hiddenMode) {
-                    Button(onClick = onRestore) { Text("Restore") }
-                } else {
-                    OutlinedButton(onClick = onDismiss) { Text("Dismiss") }
-                    Button(onClick = { onAccept(category) }) { Text("Add") }
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (hiddenMode) {
+                        Button(onClick = onRestore) { Text("Restore", maxLines = 1, softWrap = false) }
+                    } else {
+                        OutlinedButton(onClick = onDismiss) { Text("Dismiss", maxLines = 1, softWrap = false) }
+                        Button(onClick = { onAccept(category) }) { Text("Add", maxLines = 1, softWrap = false) }
+                    }
                 }
             }
         }
