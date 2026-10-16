@@ -1,6 +1,7 @@
 package com.basic.spendai.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
@@ -8,6 +9,8 @@ import com.basic.spendai.ai.AiProviders
 import com.basic.spendai.ai.AiResult
 import com.basic.spendai.ai.QuickEntryItem
 import com.basic.spendai.ai.QuickEntryParser
+import com.basic.spendai.ai.ReceiptItemizer
+import com.basic.spendai.ai.ReceiptResult
 import com.basic.spendai.ai.AiStatus
 import com.basic.spendai.data.AccuracyStats
 import com.basic.spendai.data.AiState
@@ -22,6 +25,8 @@ import com.basic.spendai.data.ExpenseDatabase
 import com.basic.spendai.data.MerchantAlias
 import com.basic.spendai.data.MerchantCategory
 import com.basic.spendai.data.SettingsRepository
+import com.basic.spendai.receipt.ReceiptPhotos
+import com.basic.spendai.receipt.ReceiptScanner
 import com.basic.spendai.sms.CategoryGuesser
 import com.basic.spendai.sms.SmsImportRepository
 import com.basic.spendai.sms.SmsInboxScanner
@@ -114,6 +119,18 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
     /** Splits a note like "200 chai, 450 auto" into expenses to confirm; rules when AI isn't available. */
     suspend fun parseQuickEntry(text: String): AiResult<List<QuickEntryItem>> =
         withContext(Dispatchers.Default) { QuickEntryParser.run(AiProviders.best(getApplication()), text) }
+
+    /**
+     * Reads a receipt photo on the device and finds its total (and items, when the model can split
+     * them and they add up). Null when no text could be read. Deletes our own camera photo afterwards.
+     */
+    suspend fun scanReceipt(uri: Uri): AiResult<ReceiptResult>? {
+        val app = getApplication<Application>()
+        val text = ReceiptScanner.readText(app, uri)
+        ReceiptPhotos.delete(app, uri)
+        if (text == null) return null
+        return withContext(Dispatchers.Default) { ReceiptItemizer.run(AiProviders.best(app), text) }
+    }
 
     fun setCurrency(currency: AppCurrency) {
         viewModelScope.launch { settings.setCurrency(currency) }

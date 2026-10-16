@@ -138,6 +138,7 @@ fun HomeScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit, onOpenDe
                 scope.launch { addChecked(viewModel, title, amount, category, duplicates) }
             },
             onQuickParse = viewModel::parseQuickEntry,
+            onScanReceipt = viewModel::scanReceipt,
             onSaveMany = { items ->
                 scope.launch { items.forEach { addChecked(viewModel, it.title, it.amount, it.category, duplicates) } }
             },

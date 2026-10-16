@@ -1,5 +1,6 @@
 package com.basic.spendai.ui.home
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.basic.spendai.ai.AiResult
 import com.basic.spendai.ai.QuickEntryItem
+import com.basic.spendai.ai.ReceiptResult
 import com.basic.spendai.data.Category
 import com.basic.spendai.ui.components.clay
 import com.basic.spendai.util.LocalCurrency
@@ -57,6 +59,8 @@ fun AddExpenseSheet(
     /** Splits a note like "200 chai, 450 auto"; null hides quick entry. */
     onQuickParse: (suspend (String) -> AiResult<List<QuickEntryItem>>)? = null,
     onSaveMany: (List<QuickEntryItem>) -> Unit = {},
+    /** Reads a receipt photo; null result means no text was found. Null hides receipt scanning. */
+    onScanReceipt: (suspend (Uri) -> AiResult<ReceiptResult>?)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -72,6 +76,21 @@ fun AddExpenseSheet(
     var reviewFromAi by remember { mutableStateOf(false) }
     val reviewRows = remember { mutableStateListOf<QuickRow>() }
     val amountFormat = remember { DecimalFormat("0.##") }
+
+    var scanning by remember { mutableStateOf(false) }
+    var scanError by remember { mutableStateOf<String?>(null) }
+    var receipt by remember { mutableStateOf<ReceiptResult?>(null) }
+    var receiptAsItems by remember { mutableStateOf(false) }
+
+    fun showReceipt(scanned: ReceiptResult, asItems: Boolean) {
+        receiptAsItems = asItems
+        reviewRows.clear()
+        reviewRows += if (asItems) {
+            scanned.items.map { QuickRow(it.title, amountFormat.format(it.amount), it.category) }
+        } else {
+            listOf(QuickRow(scanned.merchant ?: "Receipt", scanned.total?.let(amountFormat::format).orEmpty(), scanned.category))
+        }
+    }
 
     val amount = amountText.replace(',', '.').toDoubleOrNull()
     val amountValid = amount != null && amount > 0
@@ -101,7 +120,10 @@ fun AddExpenseSheet(
         ) {
             Text("Add expense", style = MaterialTheme.typography.titleLarge)
 
-            if (onQuickParse != null && reviewRows.isNotEmpty()) {
+            if (reviewRows.isNotEmpty()) {
+                receipt?.let { scanned ->
+                    ReceiptHeader(scanned, receiptAsItems, onAsItemsChange = { showReceipt(scanned, it) })
+                }
                 QuickEntryReview(
                     rows = reviewRows,
                     fromAi = reviewFromAi,
@@ -109,7 +131,13 @@ fun AddExpenseSheet(
                     onRemove = { index -> reviewRows.removeAt(index) },
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { reviewRows.clear() }, modifier = Modifier.height(56.dp)) { Text("Back") }
+                    OutlinedButton(
+                        onClick = {
+                            reviewRows.clear()
+                            receipt = null
+                        },
+                        modifier = Modifier.height(56.dp),
+                    ) { Text("Back") }
                     Button(
                         onClick = {
                             onSaveMany(reviewRows.map { QuickEntryItem(it.title.trim(), it.amount!!, it.category) })
@@ -145,12 +173,39 @@ fun AddExpenseSheet(
                                 quickError = "No amounts found. Try \"200 chai, 450 auto\"."
                             } else {
                                 reviewFromAi = result.fromAi
+                                receipt = null
                                 reviewRows.clear()
                                 reviewRows += result.value.map { QuickRow(it.title, amountFormat.format(it.amount), it.category) }
                             }
                         }
                     },
                 )
+            }
+
+            if (onScanReceipt != null) {
+                ReceiptScanRow(
+                    scanning = scanning,
+                    error = scanError,
+                    onPhoto = { uri ->
+                        scanning = true
+                        scanError = null
+                        scope.launch {
+                            val result = onScanReceipt(uri)
+                            scanning = false
+                            if (result == null) {
+                                scanError = "Couldn't read any text. Try a sharper, well-lit photo."
+                            } else {
+                                reviewFromAi = result.fromAi
+                                receipt = result.value
+                                // Offer items first when the model split them and they add up.
+                                showReceipt(result.value, asItems = result.value.items.isNotEmpty())
+                            }
+                        }
+                    },
+                )
+            }
+
+            if (onQuickParse != null || onScanReceipt != null) {
                 Text(
                     "or fill in one expense",
                     style = MaterialTheme.typography.labelMedium,
