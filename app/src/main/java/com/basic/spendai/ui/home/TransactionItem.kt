@@ -1,5 +1,6 @@
 package com.basic.spendai.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,7 +29,7 @@ import com.basic.spendai.util.formatCurrency
 import com.basic.spendai.util.formatDate
 
 @Composable
-fun TransactionItem(expense: Expense, modifier: Modifier = Modifier) {
+fun TransactionItem(expense: Expense, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val category = expense.category
     val surface = MaterialTheme.colorScheme.surface
 
@@ -39,7 +40,11 @@ fun TransactionItem(expense: Expense, modifier: Modifier = Modifier) {
         elevation = 8.dp,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            // Clickable inside the card, so the ripple follows its rounded shape.
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (onClick != null) Modifier.clickable(onClickLabel = "Edit", onClick = onClick) else Modifier)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(

@@ -5,19 +5,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -26,10 +31,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,8 +55,13 @@ import com.basic.spendai.ai.AiResult
 import com.basic.spendai.ai.QuickEntryItem
 import com.basic.spendai.ai.ReceiptResult
 import com.basic.spendai.data.Category
+import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.components.clay
 import com.basic.spendai.util.LocalCurrency
+import com.basic.spendai.util.formatDay
+import com.basic.spendai.util.toPickerDate
+import com.basic.spendai.util.withPickedDate
+import java.math.BigDecimal
 import java.text.DecimalFormat
 import kotlinx.coroutines.launch
 
@@ -61,13 +75,20 @@ fun AddExpenseSheet(
     onSaveMany: (List<QuickEntryItem>) -> Unit = {},
     /** Reads a receipt photo; null result means no text was found. Null hides receipt scanning. */
     onScanReceipt: (suspend (Uri) -> AiResult<ReceiptResult>?)? = null,
+    /** Non-null opens the sheet in edit mode for this expense; [onUpdate] receives the changed copy. */
+    editing: Expense? = null,
+    onUpdate: (Expense) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    var title by rememberSaveable { mutableStateOf("") }
-    var amountText by rememberSaveable { mutableStateOf("") }
-    var category by rememberSaveable { mutableStateOf(Category.Food) }
+    var title by rememberSaveable { mutableStateOf(editing?.title.orEmpty()) }
+    var amountText by rememberSaveable {
+        mutableStateOf(editing?.amount?.let { BigDecimal.valueOf(it).stripTrailingZeros().toPlainString() }.orEmpty())
+    }
+    var category by rememberSaveable { mutableStateOf(editing?.category ?: Category.Food) }
+    var timestamp by rememberSaveable { mutableLongStateOf(editing?.timestamp ?: 0L) }
+    var pickingDate by remember { mutableStateOf(false) }
     var showErrors by remember { mutableStateOf(false) }
 
     var quickText by rememberSaveable { mutableStateOf("") }
@@ -118,7 +139,7 @@ fun AddExpenseSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Add expense", style = MaterialTheme.typography.titleLarge)
+            Text(if (editing != null) "Edit expense" else "Add expense", style = MaterialTheme.typography.titleLarge)
 
             if (reviewRows.isNotEmpty()) {
                 receipt?.let { scanned ->
@@ -155,7 +176,7 @@ fun AddExpenseSheet(
                 return@Column
             }
 
-            if (onQuickParse != null) {
+            if (onQuickParse != null && editing == null) {
                 QuickEntryInput(
                     text = quickText,
                     onTextChange = {
@@ -182,7 +203,7 @@ fun AddExpenseSheet(
                 )
             }
 
-            if (onScanReceipt != null) {
+            if (onScanReceipt != null && editing == null) {
                 ReceiptScanRow(
                     scanning = scanning,
                     error = scanError,
@@ -205,7 +226,7 @@ fun AddExpenseSheet(
                 )
             }
 
-            if (onQuickParse != null || onScanReceipt != null) {
+            if ((onQuickParse != null || onScanReceipt != null) && editing == null) {
                 Text(
                     "or fill in one expense",
                     style = MaterialTheme.typography.labelMedium,
@@ -250,6 +271,14 @@ fun AddExpenseSheet(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            if (editing != null) {
+                OutlinedButton(onClick = { pickingDate = true }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Rounded.CalendarMonth, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Date: ${formatDay(timestamp)}")
+                }
+            }
+
             Text("Category", style = MaterialTheme.typography.titleMedium)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -287,7 +316,11 @@ fun AddExpenseSheet(
             Button(
                 onClick = {
                     if (titleValid && amountValid) {
-                        onSave(title, amount!!, category)
+                        if (editing != null) {
+                            onUpdate(editing.copy(title = title.trim(), amount = amount!!, category = category, timestamp = timestamp))
+                        } else {
+                            onSave(title, amount!!, category)
+                        }
                         close()
                     } else {
                         showErrors = true
@@ -301,8 +334,31 @@ fun AddExpenseSheet(
                     .height(56.dp)
                     .clay(MaterialTheme.colorScheme.primary, cornerRadius = 24.dp, elevation = 8.dp),
             ) {
-                Text("Save expense", color = MaterialTheme.colorScheme.onPrimary)
+                Text(if (editing != null) "Save changes" else "Save expense", color = MaterialTheme.colorScheme.onPrimary)
             }
+        }
+    }
+
+    if (pickingDate) {
+        val today = remember { toPickerDate(System.currentTimeMillis()) }
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = toPickerDate(timestamp),
+            // Spends happen in the past; don't let a mistyped date land in the future.
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= today
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { pickingDate = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { timestamp = withPickedDate(timestamp, it) }
+                    pickingDate = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { pickingDate = false }) { Text("Cancel") } },
+        ) {
+            DatePicker(state = pickerState)
         }
     }
 }
