@@ -77,12 +77,19 @@ class SpendQueryTranslator(private val today: LocalDate = LocalDate.now()) : AiT
             Period.ALL_TIME to Regex("""\b(all\s+time|ever|overall|so\s+far)\b""", o),
         )
         private val categoryWords = mapOf(
-            Category.Food to """food|eating|restaurants?|groceries|grocery|dining|meals?|snacks?""",
-            Category.Transport to """transport|travel|cabs?|autos?|fuel|petrol|commute|rides?""",
+            Category.Food to """food|dining|eating\s+out|restaurants?|cafes?|drinks|meals?|snacks?|delivery""",
+            Category.Groceries to """food|groceries|grocery|vegetables|veggies|supermarket""",
+            Category.Transport to """transport|cabs?|autos?|fuel|petrol|commute|rides?""",
+            Category.Travel to """travel|trips?|flights?|trains?|hotels?|stays?|vacations?""",
             Category.Shopping to """shopping|clothes|amazon|flipkart""",
-            Category.Bills to """bills?|rent|recharges?|utilities|electricity""",
+            Category.Bills to """bills?|recharges?|utilities|electricity""",
+            Category.Home to """rent|home|house|maintenance""",
             Category.Entertainment to """entertainment|movies?|subscriptions?|netflix""",
-            Category.Health to """health|medical|medicines?|doctors?|pharmacy""",
+            Category.Health to """health|fitness|gym|medical|medicines?|doctors?|pharmacy""",
+            Category.PersonalCare to """personal\s+care|salon|haircuts?|grooming""",
+            Category.Education to """education|courses?|books?|tuition|work\s+tools""",
+            Category.Finance to """emis?|loans?|insurance|investments?|sips?|finance""",
+            Category.Gifts to """gifts?|family|charity|donations?""",
         ).mapValues { (_, words) -> Regex("""\b($words)\b""", o) }
         private val delivery = Regex("""\bdelivery\b""", o)
         private val countWords = Regex("""\b(how\s+many|number\s+of|count|times)\b""", o)
@@ -96,8 +103,11 @@ class SpendQueryTranslator(private val today: LocalDate = LocalDate.now()) : AiT
                 .sortedBy { it.first }
                 .map { it.second }
                 .distinct()
-            val categories = categoryWords.filterValues { it.containsMatchIn(question) }.keys
-            val merchants = if (Category.Food in categories && delivery.containsMatchIn(question)) listOf("swiggy", "zomato") else emptyList()
+            val found = categoryWords.filterValues { it.containsMatchIn(question) }.keys
+            val isDelivery = delivery.containsMatchIn(question)
+            // "food delivery" means Swiggy/Zomato orders, not groceries.
+            val categories = if (isDelivery) found - Category.Groceries else found
+            val merchants = if (Category.Food in categories && isDelivery) listOf("swiggy", "zomato") else emptyList()
             val metric = when {
                 countWords.containsMatchIn(question) -> Metric.COUNT
                 averageWords.containsMatchIn(question) -> Metric.AVERAGE

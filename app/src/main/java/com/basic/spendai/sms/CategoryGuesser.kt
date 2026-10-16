@@ -4,36 +4,61 @@ import com.basic.spendai.data.Category
 
 /** Guesses a category from merchant and SMS text using keyword rules. */
 object CategoryGuesser {
-    // Checked in order, so "uber eats" lands in Food before "uber" matches Transport.
+    // Checked in order: earlier categories win, so "uber eats" is Dining before "uber" is Transport,
+    // and "zepto cafe" is Dining before "zepto" is Groceries.
     private val keywords: List<Pair<Category, List<String>>> = listOf(
         Category.Food to listOf(
-            "swiggy", "zomato", "uber eats", "eatsure", "restaurant", "cafe", "coffee", "starbucks", "dominos",
-            "domino's", "pizza", "mcdonald", "kfc", "burger", "subway", "bakery", "food", "dine", "dhaba",
-            "chai", "zepto cafe", "blinkit", "bigbasket", "instamart", "grocer", "grocery",
+            "swiggy", "zomato", "uber eats", "eatsure", "zepto cafe", "restaurant", "cafe", "coffee", "starbucks",
+            "dominos", "domino's", "pizza", "mcdonald", "kfc", "burger", "subway", "bakery", "dine", "dhaba",
+            "chai", "bar", "pub", "brewery", "food court",
+        ),
+        Category.Groceries to listOf(
+            "blinkit", "zepto", "bigbasket", "instamart", "jiomart", "dmart", "more supermarket", "reliance fresh",
+            "spencer", "nature's basket", "grocer", "grocery", "supermarket", "kirana", "dairy", "milk", "fruits",
+            "vegetables", "country delight",
+        ),
+        Category.Travel to listOf(
+            "irctc", "railway", "indigo", "air india", "vistara", "spicejet", "akasa", "makemytrip", "goibibo",
+            "cleartrip", "ixigo", "yatra", "redbus", "oyo", "airbnb", "hotel", "resort", "booking.com", "agoda",
         ),
         Category.Transport to listOf(
-            "uber", "ola", "rapido", "irctc", "railway", "metro", "fuel", "petrol", "diesel", "hpcl", "bpcl",
-            "indian oil", "iocl", "shell", "fastag", "parking", "redbus", "indigo", "air india", "vistara",
-            "spicejet", "akasa", "makemytrip", "goibibo", "cab", "taxi", "toll",
+            "uber", "ola", "rapido", "metro", "fuel", "petrol", "diesel", "hpcl", "bpcl", "indian oil", "iocl",
+            "shell", "fastag", "parking", "cab", "taxi", "toll", "namma yatri", "blusmart",
         ),
-        Category.Shopping to listOf(
-            "amazon", "flipkart", "myntra", "ajio", "meesho", "nykaa", "dmart", "reliance", "trends",
-            "lifestyle", "westside", "decathlon", "ikea", "croma", "tata cliq", "snapdeal", "mall", "store",
-            "mart", "retail", "fashion",
+        Category.Home to listOf(
+            "rent", "nobroker", "society", "maintenance", "housing", "urban company", "plumber", "electrician",
+            "carpenter", "maid", "furniture", "pepperfry",
+        ),
+        Category.Finance to listOf(
+            "emi", "loan", "insurance", "lic", "policybazaar", "premium", "sip", "mutual fund", "zerodha", "groww",
+            "upstox", "credit card bill", "cred", "income tax", "bajaj finance",
         ),
         Category.Bills to listOf(
             "electricity", "recharge", "airtel", "jio", "vodafone", "vi ", "bsnl", "broadband", "act fibernet",
-            "gas", "water", "bill", "billpay", "insurance", "lic", "emi", "loan", "rent", "postpaid", "dth",
-            "tata play", "bescom", "tneb", "mseb", "adani", "maintenance", "society",
+            "gas", "water", "bill", "billpay", "postpaid", "dth", "tata play", "bescom", "tneb", "mseb", "adani",
         ),
         Category.Entertainment to listOf(
             "netflix", "spotify", "prime video", "hotstar", "disney", "jiocinema", "zee5", "sonyliv",
             "youtube", "bookmyshow", "pvr", "inox", "cinema", "movie", "steam", "playstation", "gaming",
         ),
+        Category.PersonalCare to listOf(
+            "salon", "spa", "barber", "haircut", "parlour", "parlor", "grooming", "nykaa", "laundry", "dry clean",
+            "cosmetics",
+        ),
         Category.Health to listOf(
             "pharmacy", "pharma", "medical", "medic", "apollo", "1mg", "netmeds", "pharmeasy", "hospital",
             "clinic", "diagnostic", "lab", "healthkart", "cult.fit", "cultfit", "gym", "dental", "doctor",
         ),
+        Category.Education to listOf(
+            "udemy", "coursera", "byju", "unacademy", "upgrad", "school", "college", "university", "tuition",
+            "coaching", "books", "kindle", "stationery", "linkedin", "notion", "github",
+        ),
+        Category.Shopping to listOf(
+            "amazon", "flipkart", "myntra", "ajio", "meesho", "reliance digital", "trends", "lifestyle",
+            "westside", "decathlon", "ikea", "croma", "tata cliq", "snapdeal", "mall", "store", "mart", "retail",
+            "fashion",
+        ),
+        Category.Gifts to listOf("gift", "donation", "charity", "temple", "ferns n petals", "igp", "pet"),
     )
 
     private val rules: List<Pair<Category, Regex>> = keywords.map { (category, words) ->
@@ -42,16 +67,24 @@ object CategoryGuesser {
 
     // Words people type in quick notes ("450 auto", "samosa") but that would misfire on bank SMS
     // ("auto-debit"), so they're only used for typed or spoken entries.
+    // Words people type in quick notes ("450 auto", "samosa") but that would misfire on bank SMS
+    // ("auto-debit"), so they're only used for typed or spoken entries.
     private val casualKeywords: List<Pair<Category, List<String>>> = listOf(
         Category.Food to listOf(
             "samosa", "lunch", "dinner", "breakfast", "snacks", "snack", "tea", "juice", "biryani", "thali",
-            "dosa", "idli", "vada pav", "momos", "maggi", "ice cream", "sweets", "fruits", "vegetables", "milk", "groceries",
+            "dosa", "idli", "vada pav", "momos", "maggi", "ice cream", "sweets", "drinks", "beer", "party",
         ),
-        Category.Transport to listOf("auto", "rickshaw", "bus", "train", "flight", "ride", "bike", "cab fare"),
-        Category.Shopping to listOf("clothes", "shoes", "shirt", "gift"),
+        Category.Groceries to listOf("groceries", "veggies", "bread", "eggs", "atta", "rice", "dal", "oil", "sabzi"),
+        Category.Transport to listOf("auto", "rickshaw", "bus", "ride", "bike", "cab fare"),
+        Category.Travel to listOf("train", "flight", "trip", "stay", "hostel", "vacation"),
+        Category.Shopping to listOf("clothes", "shoes", "shirt", "jeans", "phone", "headphones"),
         Category.Bills to listOf("wifi", "phone bill", "mobile recharge"),
-        Category.Entertainment to listOf("movie", "concert", "game", "outing"),
-        Category.Health to listOf("medicine", "medicines", "tablets", "checkup", "doctor fee"),
+        Category.Home to listOf("house rent", "repairs", "cook", "cleaning"),
+        Category.Entertainment to listOf("concert", "game", "outing"),
+        Category.Health to listOf("medicine", "medicines", "tablets", "checkup", "doctor fee", "physio"),
+        Category.PersonalCare to listOf("hair", "shave", "facial", "manicure", "pedicure", "skincare"),
+        Category.Education to listOf("course", "book", "notebook", "pens", "exam fee", "fees"),
+        Category.Gifts to listOf("birthday", "wedding", "sent to mom", "sent to dad", "family"),
     )
     private val casualRules = casualKeywords.map { (category, words) ->
         category to Regex(words.joinToString("|", "\\b(", ")\\b") { Regex.escape(it) }, RegexOption.IGNORE_CASE)

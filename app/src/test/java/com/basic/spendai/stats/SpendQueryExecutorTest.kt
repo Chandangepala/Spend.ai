@@ -80,7 +80,7 @@ class SpendQueryExecutorTest {
     @Test
     fun describeShowsWhatWasAnswered() {
         assertEquals(
-            "Food · Swiggy, Zomato · Last month vs This month",
+            "Dining & Drinks · Swiggy, Zomato · Last month vs This month",
             SpendQuery(categories = setOf(Category.Food), merchantContains = listOf("swiggy", "zomato"), period = Period.LAST_MONTH, compareTo = Period.THIS_MONTH).describe(),
         )
         assertEquals("This month", SpendQuery().describe())

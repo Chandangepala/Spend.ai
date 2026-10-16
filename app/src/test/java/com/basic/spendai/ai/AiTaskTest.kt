@@ -26,14 +26,25 @@ class AiTaskTest {
         val result = CategorizeTask.run(provider, "Swiggy")
         assertEquals(Category.Food, result.value)
         assertTrue(result.fromAi)
-        assertTrue(provider.prompts.single().contains("Food, Transport, Shopping"))
+        assertTrue(provider.prompts.single().contains("Dining & Drinks, Groceries, Transport"))
     }
 
     @Test
     fun fallsBackWhenReplyIsInvalid() = runTest {
-        val result = CategorizeTask.run(FakeAiProvider("""{"category":"Groceries"}"""), "Swiggy")
+        val result = CategorizeTask.run(FakeAiProvider("""{"category":"Snacks"}"""), "Swiggy")
         assertEquals(Category.Other, result.value)
         assertFalse(result.fromAi)
+    }
+
+    @Test
+    fun acceptsLabelsAndStoredNames() {
+        assertEquals(Category.Food, AiTask.categoryOrNull("Dining & Drinks"))
+        assertEquals(Category.Food, AiTask.categoryOrNull("dining and drinks"))
+        assertEquals(Category.Food, AiTask.categoryOrNull("Food"))
+        assertEquals(Category.PersonalCare, AiTask.categoryOrNull("Personal Care"))
+        assertEquals(Category.Finance, AiTask.categoryOrNull("EMI & Finance"))
+        assertEquals(null, AiTask.categoryOrNull("Snacks"))
+        assertEquals(null, AiTask.categoryOrNull(""))
     }
 
     @Test

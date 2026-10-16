@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,8 +23,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -78,6 +75,8 @@ fun AddExpenseSheet(
     /** Non-null opens the sheet in edit mode for this expense; [onUpdate] receives the changed copy. */
     editing: Expense? = null,
     onUpdate: (Expense) -> Unit = {},
+    /** Categories most-used first; the first 7 show as chips before "+ More". */
+    categoryOrder: List<Category> = orderCategories(emptyMap()),
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -86,7 +85,8 @@ fun AddExpenseSheet(
     var amountText by rememberSaveable {
         mutableStateOf(editing?.amount?.let { BigDecimal.valueOf(it).stripTrailingZeros().toPlainString() }.orEmpty())
     }
-    var category by rememberSaveable { mutableStateOf(editing?.category ?: Category.Food) }
+    // New expenses start on the user's most-used category.
+    var category by rememberSaveable { mutableStateOf(editing?.category ?: categoryOrder.first()) }
     var timestamp by rememberSaveable { mutableLongStateOf(editing?.timestamp ?: 0L) }
     var pickingDate by remember { mutableStateOf(false) }
     var showErrors by remember { mutableStateOf(false) }
@@ -280,36 +280,7 @@ fun AddExpenseSheet(
             }
 
             Text("Category", style = MaterialTheme.typography.titleMedium)
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Category.entries.forEach { option ->
-                    FilterChip(
-                        selected = option == category,
-                        onClick = { category = option },
-                        label = { Text(option.label) },
-                        leadingIcon = {
-                            Icon(
-                                option.icon,
-                                contentDescription = null,
-                                tint = if (option == category) Color.White else option.color,
-                            )
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = option.color,
-                            selectedLabelColor = Color.White,
-                            labelColor = option.color,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = option == category,
-                            borderColor = option.color.copy(alpha = 0.5f),
-                        ),
-                    )
-                }
-            }
+            CategoryChips(selected = category, onSelect = { category = it }, order = categoryOrder)
 
             Spacer(Modifier.height(4.dp))
 
