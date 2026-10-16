@@ -84,6 +84,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.genai.prompt)
+    implementation(libs.text.recognition)
     implementation(libs.logging.interceptor)
     implementation(libs.material)
     implementation(libs.moshi.kotlin)
