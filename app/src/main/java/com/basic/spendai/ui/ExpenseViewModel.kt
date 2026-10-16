@@ -14,6 +14,7 @@ import com.basic.spendai.ai.ReceiptResult
 import com.basic.spendai.ai.SpendQueryTranslator
 import com.basic.spendai.ai.AiStatus
 import com.basic.spendai.ai.AnswerWriter
+import com.basic.spendai.ai.InsightWriter
 import com.basic.spendai.data.AccuracyStats
 import com.basic.spendai.data.AiState
 import com.basic.spendai.data.AppCurrency
@@ -27,6 +28,8 @@ import com.basic.spendai.data.ExpenseDatabase
 import com.basic.spendai.data.MerchantAlias
 import com.basic.spendai.data.MerchantCategory
 import com.basic.spendai.data.SettingsRepository
+import com.basic.spendai.insights.InsightsRepository
+import com.basic.spendai.insights.WeeklyInsightsWorker
 import com.basic.spendai.receipt.ReceiptPhotos
 import com.basic.spendai.receipt.ReceiptScanner
 import com.basic.spendai.sms.CategoryGuesser
@@ -35,6 +38,7 @@ import com.basic.spendai.sms.SmsInboxScanner
 import com.basic.spendai.sms.SmsParser
 import com.basic.spendai.stats.SpendAnswer
 import com.basic.spendai.stats.SpendQueryExecutor
+import com.basic.spendai.ui.home.InsightUi
 import com.basic.spendai.ui.home.orderCategories
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -97,6 +101,36 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         dao.observeCategoryCounts()
             .map { counts -> orderCategories(counts.associate { it.category to it.count }) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), orderCategories(emptyMap()))
+
+    private val insights = InsightsRepository(application)
+
+    /** The latest weekly summary for Home; null until one has been written (or for a week with no spending). */
+    val weeklyInsight: StateFlow<InsightUi?> =
+        combine(db.weeklyInsightDao().observeLatest(), settings.currency) { latest, currency ->
+            val report = latest?.let(InsightsRepository::decode) ?: return@combine null
+            val summary = latest.summary ?: return@combine null
+            if (report.count == 0) return@combine null
+            InsightUi(report, summary, latest.summaryFromAi, InsightWriter.facts(InsightWriter.Input(report, currency)).drop(1))
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val insightsNotify: StateFlow<Boolean> =
+        settings.insightsNotify.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    init {
+        WeeklyInsightsWorker.schedule(application)
+    }
+
+    /** On every resume: make this week's report if one is due, then write its summary while we're in front. */
+    fun refreshInsights() {
+        viewModelScope.launch {
+            insights.ensureCurrent()
+            insights.writeSummaryIfMissing(AiProviders.best(getApplication()), settings.currency.first())
+        }
+    }
+
+    fun setInsightsNotify(enabled: Boolean) {
+        viewModelScope.launch { settings.setInsightsNotify(enabled) }
+    }
 
     val hiddenDetections: StateFlow<List<DetectedTransaction>> =
         detectedDao.observeHidden().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

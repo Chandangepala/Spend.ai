@@ -1,6 +1,7 @@
 package com.basic.spendai.ui.settings
 
 import android.Manifest
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +46,9 @@ import com.basic.spendai.ai.AiStatus
 import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.ui.AiUiState
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import com.google.accompanist.permissions.rememberPermissionState
 import com.basic.spendai.ui.components.ClayCard
 import com.basic.spendai.ui.components.clay
 import com.basic.spendai.ui.theme.SpendaiTheme
@@ -61,6 +64,8 @@ fun SettingsScreen(
     ai: AiUiState = AiUiState(),
     onAiEnabledChange: (Boolean) -> Unit = {},
     onDownloadAi: () -> Unit = {},
+    insightsNotify: Boolean = false,
+    onInsightsNotifyChange: (Boolean) -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
 
@@ -105,6 +110,9 @@ fun SettingsScreen(
             }
             item {
                 SmsImportRow(enabled = smsImportEnabled, onChange = onSmsImportChange)
+            }
+            item {
+                InsightsNotifyRow(enabled = insightsNotify, onChange = onInsightsNotifyChange)
             }
             item {
                 Column(Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)) {
@@ -239,6 +247,45 @@ private fun SmsImportRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
                 Text("Auto-detect expenses from SMS", style = MaterialTheme.typography.titleMedium)
                 Text(
                     "Reads bank debit SMS and suggests expenses for you to review. Messages are processed on this device and never leave it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.size(12.dp))
+            Switch(checked = checked, onCheckedChange = null)
+        }
+    }
+}
+
+/** Weekly summary notification; on Android 13+ turning it on first asks for notification permission. */
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+private fun InsightsNotifyRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
+    val needsPermission = Build.VERSION.SDK_INT >= 33
+    val permission = if (needsPermission) {
+        rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS) { granted -> if (granted) onChange(true) }
+    } else {
+        null
+    }
+    val granted = permission == null || permission.status.isGranted
+    val checked = enabled && granted
+
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = checked,
+                    role = Role.Switch,
+                    onValueChange = { on -> if (on && !granted) permission?.launchPermissionRequest() else onChange(on) },
+                )
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Weekly summary notification", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Once a week, while charging, a short note on what stood out in your spending. Worked out on this phone.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

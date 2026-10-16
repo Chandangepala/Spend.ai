@@ -15,8 +15,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MerchantCategory::class,
         CategoryCorrection::class,
         MerchantAlias::class,
+        WeeklyInsight::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -24,6 +25,7 @@ abstract class ExpenseDatabase : RoomDatabase() {
     abstract fun expenseDao(): ExpenseDao
     abstract fun detectedTransactionDao(): DetectedTransactionDao
     abstract fun correctionDao(): CorrectionDao
+    abstract fun weeklyInsightDao(): WeeklyInsightDao
 
     companion object {
         @Volatile
@@ -88,13 +90,31 @@ abstract class ExpenseDatabase : RoomDatabase() {
             }
         }
 
+        /** Phase 6: weekly insight reports and their summaries. */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS weekly_insights (
+                        weekFrom INTEGER NOT NULL PRIMARY KEY,
+                        weekUntil INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        reportJson TEXT NOT NULL,
+                        summary TEXT,
+                        summaryFromAi INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun get(context: Context): ExpenseDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     ExpenseDatabase::class.java,
                     "spendai.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { instance = it }
             }
     }
 }
