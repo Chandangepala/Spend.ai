@@ -33,6 +33,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -41,6 +45,8 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -59,7 +65,9 @@ import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.data.Category
 import com.basic.spendai.data.Expense
@@ -81,12 +89,36 @@ fun HomeScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var undoJob by remember { mutableStateOf<Job?>(null) }
+    // Bumped on every Undo so list rows forget the restored row's "swiped away" state.
+    var undoCount by remember { mutableIntStateOf(0) }
+    val deleteWithUndo: (Expense) -> Unit = { expense ->
+        viewModel.deleteExpense(expense)
+        // A newer delete replaces the previous snackbar (and its undo).
+        undoJob?.cancel()
+        undoJob = scope.launch {
+            // Snackbar durations are fixed (4s+), so cap it at 3s ourselves; cancelling dismisses it.
+            val result = withTimeoutOrNull(UNDO_WINDOW_MS) {
+                snackbarHostState.showSnackbar(
+                    message = "Deleted \"${expense.title}\"",
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Indefinite,
+                )
+            }
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.restoreExpense(expense)
+                undoCount++
+            }
+        }
+    }
     // Possible duplicates waiting for "Add anyway / Skip"; quick entry can queue several.
     val duplicates = remember { mutableStateListOf<Pair<Expense, () -> Unit>>() }
     val layoutInfo = rememberHomeLayoutInfo()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -134,8 +166,9 @@ fun HomeScreen(
             HomeContent(
                 state = state,
                 layoutInfo = layoutInfo,
-                onDelete = viewModel::deleteExpense,
+                onDelete = deleteWithUndo,
                 modifier = Modifier.weight(1f),
+                undoCount = undoCount,
             )
         }
     }
@@ -166,6 +199,9 @@ fun HomeScreen(
     }
 }
 
+/** How long the "Undo" option stays after a swipe-delete. */
+private const val UNDO_WINDOW_MS = 3_000L
+
 /** Adds right away, or queues the "Looks like a duplicate" question if a similar expense exists. */
 private suspend fun addChecked(
     viewModel: ExpenseViewModel,
@@ -185,6 +221,7 @@ fun HomeContent(
     layoutInfo: HomeLayoutInfo,
     onDelete: (Expense) -> Unit,
     modifier: Modifier = Modifier,
+    undoCount: Int = 0,
 ) {
     when (layoutInfo.layout) {
         HomeLayout.SinglePane -> Column(modifier.fillMaxSize()) {
@@ -193,7 +230,7 @@ fun HomeContent(
                 expenses = state.expenses,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
-            TransactionsPane(state.expenses, onDelete, Modifier.weight(1f))
+            TransactionsPane(state.expenses, onDelete, Modifier.weight(1f), undoCount)
         }
 
         HomeLayout.TwoPane -> HingeAwareRow(
@@ -208,6 +245,7 @@ fun HomeContent(
                         .fillMaxSize()
                         .wrapContentWidth(Alignment.CenterHorizontally)
                         .widthIn(max = 720.dp),
+                    undoCount = undoCount,
                 )
             },
         )
@@ -216,7 +254,7 @@ fun HomeContent(
             hinge = layoutInfo.hinge,
             modifier = modifier,
             top = { SummaryPane(state, Modifier.fillMaxSize(), sideBySide = true) },
-            bottom = { TransactionsPane(state.expenses, onDelete, Modifier.fillMaxSize()) },
+            bottom = { TransactionsPane(state.expenses, onDelete, Modifier.fillMaxSize(), undoCount) },
         )
     }
 }
@@ -247,6 +285,7 @@ private fun TransactionsPane(
     expenses: List<Expense>,
     onDelete: (Expense) -> Unit,
     modifier: Modifier = Modifier,
+    undoCount: Int = 0,
 ) {
     Column(modifier) {
         Text(
@@ -275,11 +314,15 @@ private fun TransactionsPane(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 items(expenses, key = { it.id }) { expense ->
-                    SwipeToDeleteItem(
-                        expense = expense,
-                        onDelete = { onDelete(expense) },
-                        modifier = Modifier.animateItem(),
-                    )
+                    // An undone row comes back with the same id, so the list would reuse its
+                    // swiped-away state; a new undoCount gives every row a fresh, settled state.
+                    key(undoCount) {
+                        SwipeToDeleteItem(
+                            expense = expense,
+                            onDelete = { onDelete(expense) },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
                 }
             }
         }
