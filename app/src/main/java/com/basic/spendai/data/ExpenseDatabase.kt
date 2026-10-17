@@ -16,8 +16,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CategoryCorrection::class,
         MerchantAlias::class,
         WeeklyInsight::class,
+        Budget::class,
+        SavingsGoal::class,
+        BudgetNudge::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -26,6 +29,7 @@ abstract class ExpenseDatabase : RoomDatabase() {
     abstract fun detectedTransactionDao(): DetectedTransactionDao
     abstract fun correctionDao(): CorrectionDao
     abstract fun weeklyInsightDao(): WeeklyInsightDao
+    abstract fun budgetDao(): BudgetDao
 
     companion object {
         @Volatile
@@ -108,13 +112,40 @@ abstract class ExpenseDatabase : RoomDatabase() {
             }
         }
 
+        /** Phase 7: monthly budgets, savings goals, and which budget nudges were already shown. */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS budgets " +
+                        "(category TEXT NOT NULL PRIMARY KEY, monthlyLimit REAL NOT NULL, createdAt INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS savings_goals (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        target REAL NOT NULL,
+                        saved REAL NOT NULL,
+                        deadlineEpochDay INTEGER,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS budget_nudges (category TEXT NOT NULL, month TEXT NOT NULL, " +
+                        "level TEXT NOT NULL, shownAt INTEGER NOT NULL, PRIMARY KEY(category, month, level))"
+                )
+            }
+        }
+
         fun get(context: Context): ExpenseDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     ExpenseDatabase::class.java,
                     "spendai.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .build().also { instance = it }
             }
     }
 }

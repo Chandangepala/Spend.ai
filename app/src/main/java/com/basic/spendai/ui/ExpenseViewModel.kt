@@ -15,6 +15,14 @@ import com.basic.spendai.ai.SpendQueryTranslator
 import com.basic.spendai.ai.AiStatus
 import com.basic.spendai.ai.AnswerWriter
 import com.basic.spendai.ai.InsightWriter
+import com.basic.spendai.ai.CoachWriter
+import com.basic.spendai.budgets.BudgetLevel
+import com.basic.spendai.budgets.BudgetMath
+import com.basic.spendai.budgets.BudgetNudges
+import com.basic.spendai.budgets.BudgetProgress
+import com.basic.spendai.data.Budget
+import com.basic.spendai.data.BudgetNudge
+import com.basic.spendai.data.SavingsGoal
 import com.basic.spendai.data.AccuracyStats
 import com.basic.spendai.data.AiState
 import com.basic.spendai.data.AppCurrency
@@ -46,6 +54,9 @@ import com.basic.spendai.ui.home.InsightUi
 import com.basic.spendai.ui.home.orderCategories
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -146,6 +157,92 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         WeeklyInsightsWorker.schedule(application)
+    }
+
+    private val budgetDao = db.budgetDao()
+
+    /** Each budget against this calendar month's spending, in the order they were set. */
+    val budgets: StateFlow<List<BudgetProgress>> =
+        combine(dao.observeAll(), budgetDao.observeBudgets()) { all, budgets ->
+            val now = java.time.Instant.now()
+            val zone = java.time.ZoneId.systemDefault()
+            budgets.map { BudgetMath.progress(all, it.category, it.monthlyLimit, now, zone) }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val goals: StateFlow<List<SavingsGoal>> =
+        budgetDao.observeGoals().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    // A channel, not a SharedFlow: a nudge raised before the UI starts collecting is kept, not dropped.
+    private val nudgeChannel = Channel<String>(Channel.BUFFERED)
+
+    /** "You're at 85% of your Food budget…", once per category, level and month; shown as a snackbar. */
+    val nudges: Flow<String> = nudgeChannel.receiveAsFlow()
+
+    init {
+        // Expenses are only added while the app is open, so watching here catches every crossing.
+        viewModelScope.launch { budgets.collect(::checkNudges) }
+    }
+
+    private suspend fun checkNudges(progress: List<BudgetProgress>) {
+        val month = java.time.YearMonth.now()
+        budgetDao.pruneNudges(month.minusMonths(1).toString())
+        val currency = settings.currency.first()
+        progress.filter { it.level != BudgetLevel.OK }.forEach { p ->
+            val fresh = budgetDao.recordNudge(BudgetNudge(p.category, month.toString(), p.level.name)) != -1L
+            // Going straight past 100% also counts as having passed 80%.
+            if (p.level == BudgetLevel.OVER) budgetDao.recordNudge(BudgetNudge(p.category, month.toString(), BudgetLevel.NEAR.name))
+            if (fresh) BudgetNudges.message(p, currency)?.let { nudgeChannel.trySend(it) }
+        }
+    }
+
+    fun setBudget(category: Category, limit: Double) {
+        viewModelScope.launch { budgetDao.upsertBudget(Budget(category, limit)) }
+    }
+
+    fun removeBudget(category: Category) {
+        viewModelScope.launch {
+            db.withTransaction {
+                budgetDao.deleteBudget(category)
+                budgetDao.clearNudges(category)
+            }
+        }
+    }
+
+    /** The last 3 complete months' spending and a suggested budget, or null without enough history. */
+    suspend fun suggestBudget(category: Category): CoachWriter.Topic.Suggestion? {
+        val now = java.time.Instant.now()
+        val zone = java.time.ZoneId.systemDefault()
+        val expenses = dao.between(0, now.toEpochMilli() + 1)
+        val suggested = BudgetMath.suggestBudget(expenses, category, now, zone) ?: return null
+        return CoachWriter.Topic.Suggestion(category, suggested, BudgetMath.pastMonthTotals(expenses, category, now, zone))
+    }
+
+    /** What cutting [category] by [percent]% saves, from its average month; null with no history. */
+    suspend fun whatIf(category: Category, percent: Int): CoachWriter.Topic.WhatIf? {
+        val now = java.time.Instant.now()
+        val zone = java.time.ZoneId.systemDefault()
+        val average = BudgetMath.averageMonth(dao.between(0, now.toEpochMilli() + 1), category, now, zone)
+        if (average <= 0) return null
+        val (monthly, yearly) = BudgetMath.whatIf(average, percent)
+        return CoachWriter.Topic.WhatIf(category, percent, average, monthly, yearly)
+    }
+
+    /** A coaching sentence; the model rewords computed facts, the template covers everything else. */
+    suspend fun coach(topic: CoachWriter.Topic): AiResult<String> {
+        val input = CoachWriter.Input(topic, settings.currency.first())
+        return withContext(Dispatchers.Default) { CoachWriter.run(AiProviders.best(getApplication()), input) }
+    }
+
+    fun saveGoal(goal: SavingsGoal) {
+        viewModelScope.launch { if (goal.id == 0L) budgetDao.insertGoal(goal) else budgetDao.updateGoal(goal) }
+    }
+
+    fun addToGoal(goal: SavingsGoal, amount: Double) {
+        viewModelScope.launch { budgetDao.addToGoal(goal.id, amount) }
+    }
+
+    fun deleteGoal(goal: SavingsGoal) {
+        viewModelScope.launch { budgetDao.deleteGoal(goal.id) }
     }
 
     /** On every resume: make this week's report if one is due, then write its summary while we're in front. */

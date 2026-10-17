@@ -28,6 +28,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
@@ -96,6 +99,8 @@ fun SpendaiApp(viewModel: ExpenseViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
     var activitySection by rememberSaveable { mutableStateOf(ActivitySection.Expenses) }
+    // Bumped to make Insights scroll to its budgets (from Home's chips or a nudge's "View").
+    var focusBudgets by rememberSaveable { mutableIntStateOf(0) }
 
     val stacks: Map<Tab, NavBackStack<NavKey>> = Tab.entries.associateWith { rememberNavBackStack(it.root) }
     val current = stacks.getValue(tab)
@@ -121,12 +126,16 @@ fun SpendaiApp(viewModel: ExpenseViewModel) {
                     select(Tab.Activity)
                 },
                 onOpenInsights = { select(Tab.Insights) },
+                onOpenBudgets = {
+                    focusBudgets++
+                    select(Tab.Insights)
+                },
             )
         }
         entry<ActivityRoute> {
             ActivityScreen(viewModel, actions, activitySection, { activitySection = it }, ::openSettings)
         }
-        entry<InsightsRoute> { InsightsScreen(viewModel, ::openSettings) }
+        entry<InsightsRoute> { InsightsScreen(viewModel, ::openSettings, focusBudgets) }
         entry<AskRoute> {
             val history by viewModel.askHistory.collectAsStateWithLifecycle()
             val asking by viewModel.asking.collectAsStateWithLifecycle()
@@ -140,6 +149,17 @@ fun SpendaiApp(viewModel: ExpenseViewModel) {
     // Home sits under every other tab, so back (and predictive back) from a tab's root goes Home.
     val shown = if (tab == Tab.Home) entries.getValue(Tab.Home) else entries.getValue(Tab.Home) + entries.getValue(tab)
     val onSettings = current.lastOrNull() == SettingsRoute
+
+    // Budget nudges ("You're at 85% of your Food budget…") as a snackbar, with a shortcut to the budgets.
+    LaunchedEffect(viewModel) {
+        viewModel.nudges.collect { message ->
+            val result = actions.snackbar.showSnackbar(message, actionLabel = "View", withDismissAction = true, duration = SnackbarDuration.Long)
+            if (result == SnackbarResult.ActionPerformed) {
+                focusBudgets++
+                select(Tab.Insights)
+            }
+        }
+    }
 
     // Hide the bar while scrolling down a list, bring it back on scroll up (and on any tab change).
     val suiteState = rememberNavigationSuiteScaffoldState()
