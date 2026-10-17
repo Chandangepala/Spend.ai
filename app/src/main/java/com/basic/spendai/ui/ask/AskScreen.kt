@@ -63,8 +63,9 @@ private val suggestions = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun AskScreen(history: List<AskEntry>, asking: Boolean, onAsk: (String) -> Unit, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
+fun AskScreen(history: List<AskEntry>, asking: Boolean, onAsk: (String) -> Unit, onBack: (() -> Unit)? = null) {
+    // As a tab there's no back arrow; the navigation handles system back.
+    onBack?.let { BackHandler(onBack = it) }
     var question by rememberSaveable { mutableStateOf("") }
     fun send(text: String) {
         if (text.isBlank() || asking) return
@@ -78,7 +79,7 @@ fun AskScreen(history: List<AskEntry>, asking: Boolean, onAsk: (String) -> Unit,
             TopAppBar(
                 title = { Text("Ask your spends", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back") }
+                    onBack?.let { IconButton(onClick = it) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back") } }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )

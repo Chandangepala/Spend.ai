@@ -3,6 +3,8 @@ package com.basic.spendai.ui.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,17 +15,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Sms
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -37,6 +42,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,63 +65,45 @@ import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
-import com.basic.spendai.ui.theme.SpendaiTheme
+import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.data.Category
 import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.ExpenseUiState
 import com.basic.spendai.ui.ExpenseViewModel
+import com.basic.spendai.ui.app.AddExpenseFab
+import com.basic.spendai.ui.app.ExpenseActions
 import com.basic.spendai.ui.components.ClayCard
 import com.basic.spendai.ui.components.DuplicateDialog
-import com.basic.spendai.ui.detected.DetectedBanner
 import com.basic.spendai.ui.components.clay
+import com.basic.spendai.ui.theme.SpendaiTheme
+import com.basic.spendai.util.LocalCurrency
+import com.basic.spendai.util.formatCurrency
+import kotlin.math.abs
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+
+/** How many expenses Home lists before "See all" (the full list lives in Activity). */
+private const val RECENT_COUNT = 5
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: ExpenseViewModel,
+    actions: ExpenseActions,
     onOpenSettings: () -> Unit,
-    onOpenDetected: () -> Unit = {},
-    onOpenAsk: () -> Unit = {},
+    onSeeAll: () -> Unit,
+    onReview: () -> Unit,
+    onOpenInsights: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val categoryOrder by viewModel.categoryOrder.collectAsStateWithLifecycle()
+    val month by viewModel.month.collectAsStateWithLifecycle()
     val insight by viewModel.weeklyInsight.collectAsStateWithLifecycle()
-    var showAddSheet by rememberSaveable { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<Expense?>(null) }
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
-    var undoJob by remember { mutableStateOf<Job?>(null) }
-    // Bumped on every Undo so list rows forget the restored row's "swiped away" state.
-    var undoCount by remember { mutableIntStateOf(0) }
-    val deleteWithUndo: (Expense) -> Unit = { expense ->
-        viewModel.deleteExpense(expense)
-        // A newer delete replaces the previous snackbar (and its undo).
-        undoJob?.cancel()
-        undoJob = scope.launch {
-            // Snackbar durations are fixed (4s+), so cap it at 3s ourselves; cancelling dismisses it.
-            val result = withTimeoutOrNull(UNDO_WINDOW_MS) {
-                snackbarHostState.showSnackbar(
-                    message = "Deleted \"${expense.title}\"",
-                    actionLabel = "Undo",
-                    duration = SnackbarDuration.Indefinite,
-                )
-            }
-            if (result == SnackbarResult.ActionPerformed) {
-                viewModel.restoreExpense(expense)
-                undoCount++
-            }
-        }
-    }
-    // Possible duplicates waiting for "Add anyway / Skip"; quick entry can queue several.
-    val duplicates = remember { mutableStateListOf<Pair<Expense, () -> Unit>>() }
     val layoutInfo = rememberHomeLayoutInfo()
+    val currency = LocalCurrency.current
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -127,9 +115,6 @@ fun HomeScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = onOpenAsk) {
-                        Icon(Icons.AutoMirrored.Rounded.Chat, contentDescription = "Ask your spends")
-                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Rounded.Settings, contentDescription = "Settings")
                     }
@@ -139,95 +124,71 @@ fun HomeScreen(
                 ),
             )
         },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showAddSheet = true },
-                icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                text = { Text("Add expense") },
-                shape = RoundedCornerShape(24.dp),
-                containerColor = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
-                modifier = Modifier.clay(MaterialTheme.colorScheme.primary, cornerRadius = 24.dp, elevation = 12.dp),
-            )
-        },
+        floatingActionButton = { AddExpenseFab(onClick = actions::add) },
     ) { innerPadding ->
         Column(Modifier.padding(innerPadding)) {
-            if (state.pendingDetections.isNotEmpty()) {
-                DetectedBanner(
-                    count = state.pendingDetections.size,
-                    onReview = onOpenDetected,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
-                )
-            }
-            insight?.let {
-                InsightCard(it, Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp))
-            }
+            HomeShortcuts(
+                toReview = state.pendingDetections.size,
+                hasInsight = insight != null,
+                onReview = onReview,
+                onOpenInsights = onOpenInsights,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp),
+            )
             HomeContent(
-                state = state,
+                state = ExpenseUiState(expenses = month.expenses, total = month.total),
                 layoutInfo = layoutInfo,
-                onDelete = deleteWithUndo,
+                onDelete = actions::delete,
                 modifier = Modifier.weight(1f),
-                undoCount = undoCount,
-                onEdit = { editing = it },
+                undoCount = actions.undoCount,
+                onEdit = actions::edit,
+                recent = state.expenses.take(RECENT_COUNT),
+                onSeeAll = onSeeAll.takeIf { state.expenses.size > RECENT_COUNT },
+                totalLabel = "Spent this month",
+                comparison = month.lastMonthToDate?.let { last -> monthComparison(month.total, last, currency) },
             )
         }
-    }
-
-    if (showAddSheet) {
-        AddExpenseSheet(
-            onDismiss = { showAddSheet = false },
-            onSave = { title, amount, category ->
-                scope.launch { addChecked(viewModel, title, amount, category, duplicates) }
-            },
-            onQuickParse = viewModel::parseQuickEntry,
-            onScanReceipt = viewModel::scanReceipt,
-            categoryOrder = categoryOrder,
-            onSaveMany = { items ->
-                scope.launch { items.forEach { addChecked(viewModel, it.title, it.amount, it.category, duplicates) } }
-            },
-        )
-    }
-
-    editing?.let { expense ->
-        // Keyed so tapping another row while one is open starts from that row's values.
-        key(expense.id) {
-            AddExpenseSheet(
-                onDismiss = { editing = null },
-                onSave = { _, _, _ -> },
-                editing = expense,
-                onUpdate = viewModel::updateExpense,
-                categoryOrder = categoryOrder,
-            )
-        }
-    }
-
-    duplicates.firstOrNull()?.let { (existing, add) ->
-        DuplicateDialog(
-            existing = existing,
-            onAddAnyway = {
-                add()
-                duplicates.removeAt(0)
-            },
-            onSkip = { duplicates.removeAt(0) },
-        )
     }
 }
 
-/** How long the "Undo" option stays after a swipe-delete. */
-private const val UNDO_WINDOW_MS = 3_000L
+/** "₹1,200 less than this time last month", or null when there's nothing to compare. */
+internal fun monthComparison(thisMonth: Double, lastMonthToDate: Double, currency: AppCurrency): String? {
+    val diff = thisMonth - lastMonthToDate
+    if (lastMonthToDate == 0.0 && thisMonth == 0.0) return null
+    if (abs(diff) < 0.005) return "Same as this time last month"
+    val amount = formatCurrency(abs(diff), currency)
+    return "$amount ${if (diff < 0) "less" else "more"} than this time last month"
+}
 
-/** Adds right away, or queues the "Looks like a duplicate" question if a similar expense exists. */
-private suspend fun addChecked(
-    viewModel: ExpenseViewModel,
-    title: String,
-    amount: Double,
-    category: Category,
-    duplicates: MutableList<Pair<Expense, () -> Unit>>,
+/**
+ * Small one-tap shortcuts instead of full-width cards: what needs attention (SMS to review) and
+ * the weekly summary. Nothing shows when there's nothing to say.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun HomeShortcuts(
+    toReview: Int,
+    hasInsight: Boolean,
+    onReview: () -> Unit,
+    onOpenInsights: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val add = { viewModel.addExpense(title, amount, category) }
-    val existing = viewModel.findDuplicate(amount, System.currentTimeMillis())
-    if (existing == null) add() else duplicates += existing to add
+    if (toReview == 0 && !hasInsight) return
+    FlowRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (toReview > 0) {
+            AssistChip(
+                onClick = onReview,
+                label = { Text(if (toReview == 1) "1 SMS to review" else "$toReview SMS to review") },
+                leadingIcon = { Icon(Icons.Rounded.Sms, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            )
+        }
+        if (hasInsight) {
+            AssistChip(
+                onClick = onOpenInsights,
+                label = { Text("This week's summary") },
+                leadingIcon = { Icon(Icons.Rounded.Insights, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            )
+        }
+    }
 }
 
 @Composable
@@ -238,6 +199,11 @@ fun HomeContent(
     modifier: Modifier = Modifier,
     undoCount: Int = 0,
     onEdit: (Expense) -> Unit = {},
+    /** Rows listed beside the summary; defaults to everything in [state]. */
+    recent: List<Expense> = state.expenses,
+    onSeeAll: (() -> Unit)? = null,
+    totalLabel: String = "Total Spent",
+    comparison: String? = null,
 ) {
     when (layoutInfo.layout) {
         HomeLayout.SinglePane -> Column(modifier.fillMaxSize()) {
@@ -245,17 +211,19 @@ fun HomeContent(
                 total = state.total,
                 expenses = state.expenses,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                label = totalLabel,
+                comparison = comparison,
             )
-            TransactionsPane(state.expenses, onDelete, Modifier.weight(1f), undoCount, onEdit)
+            TransactionsPane(recent, onDelete, Modifier.weight(1f), undoCount, onEdit, onSeeAll)
         }
 
         HomeLayout.TwoPane -> HingeAwareRow(
             hinge = layoutInfo.hinge,
             modifier = modifier,
-            start = { SummaryPane(state, Modifier.fillMaxSize()) },
+            start = { SummaryPane(state, Modifier.fillMaxSize(), label = totalLabel, comparison = comparison) },
             end = {
                 TransactionsPane(
-                    expenses = state.expenses,
+                    expenses = recent,
                     onDelete = onDelete,
                     modifier = Modifier
                         .fillMaxSize()
@@ -263,6 +231,7 @@ fun HomeContent(
                         .widthIn(max = 720.dp),
                     undoCount = undoCount,
                     onEdit = onEdit,
+                    onSeeAll = onSeeAll,
                 )
             },
         )
@@ -270,15 +239,21 @@ fun HomeContent(
         HomeLayout.Tabletop -> HingeAwareColumn(
             hinge = layoutInfo.hinge,
             modifier = modifier,
-            top = { SummaryPane(state, Modifier.fillMaxSize(), sideBySide = true) },
-            bottom = { TransactionsPane(state.expenses, onDelete, Modifier.fillMaxSize(), undoCount, onEdit) },
+            top = { SummaryPane(state, Modifier.fillMaxSize(), sideBySide = true, label = totalLabel, comparison = comparison) },
+            bottom = { TransactionsPane(recent, onDelete, Modifier.fillMaxSize(), undoCount, onEdit, onSeeAll) },
         )
     }
 }
 
 /** Total card plus the per-category breakdown, used when there is room beside or above the list. */
 @Composable
-private fun SummaryPane(state: ExpenseUiState, modifier: Modifier = Modifier, sideBySide: Boolean = false) {
+private fun SummaryPane(
+    state: ExpenseUiState,
+    modifier: Modifier = Modifier,
+    sideBySide: Boolean = false,
+    label: String = "Total Spent",
+    comparison: String? = null,
+) {
     Column(
         modifier
             .verticalScroll(rememberScrollState())
@@ -287,11 +262,11 @@ private fun SummaryPane(state: ExpenseUiState, modifier: Modifier = Modifier, si
     ) {
         if (sideBySide) {
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                TotalSpentCard(state.total, state.expenses, Modifier.weight(1f), showLegend = false)
+                TotalSpentCard(state.total, state.expenses, Modifier.weight(1f), showLegend = false, label = label, comparison = comparison)
                 CategoryBreakdown(state.expenses, Modifier.weight(1f))
             }
         } else {
-            TotalSpentCard(state.total, state.expenses, showLegend = false)
+            TotalSpentCard(state.total, state.expenses, showLegend = false, label = label, comparison = comparison)
             CategoryBreakdown(state.expenses)
         }
     }
@@ -304,14 +279,25 @@ private fun TransactionsPane(
     modifier: Modifier = Modifier,
     undoCount: Int = 0,
     onEdit: (Expense) -> Unit = {},
+    onSeeAll: (() -> Unit)? = null,
 ) {
     Column(modifier) {
-        Text(
-            "Recent transactions",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 4.dp),
-        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 12.dp, top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Recent transactions",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 12.dp),
+            )
+            onSeeAll?.let { TextButton(onClick = it) { Text("See all") } }
+        }
 
         if (expenses.isEmpty()) {
             EmptyState(Modifier.weight(1f))
@@ -359,7 +345,7 @@ private fun TransactionsPane(
 }
 
 @Composable
-private fun SwipeToDeleteItem(
+internal fun SwipeToDeleteItem(
     expense: Expense,
     open: Boolean,
     onOpenChange: (Boolean) -> Unit,

@@ -27,7 +27,18 @@ private val DarkColorScheme = darkColorScheme(
     onBackground = Green90,
     surface = Forest15,
     onSurface = Green90,
+    onSecondaryContainer = Teal90,
+    secondaryContainer = Color(0xFF1F4D47),
+    // Material 3's container surfaces (nav bar, menus, sheets) default to a purple-grey; keep them forest.
+    surfaceVariant = Color(0xFF2A3B2D),
+    onSurfaceVariant = Color(0xFFB8CCBB),
+    surfaceContainerLowest = Color(0xFF0B140C),
     surfaceContainerLow = Forest15,
+    surfaceContainer = Color(0xFF1C2B1F),
+    surfaceContainerHigh = Color(0xFF243527),
+    surfaceContainerHighest = Color(0xFF2D402F),
+    outline = Color(0xFF849886),
+    outlineVariant = Color(0xFF3B4D3E),
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -42,7 +53,15 @@ private val LightColorScheme = lightColorScheme(
     surface = Mint98,
     onSurface = Ink,
     onSurfaceVariant = InkVariant,
+    // Material 3's container surfaces (nav bar, menus, sheets) default to a purple-grey; keep them mint.
+    surfaceVariant = Color(0xFFDCE8DD),
+    surfaceContainerLowest = Color.White,
     surfaceContainerLow = Mint98,
+    surfaceContainer = Color(0xFFE3F1E5),
+    surfaceContainerHigh = Color(0xFFDAEBDD),
+    surfaceContainerHighest = Color(0xFFD2E5D5),
+    outline = Color(0xFF718074),
+    outlineVariant = Color(0xFFC2D1C5),
 )
 
 private val ClayShapes = Shapes(

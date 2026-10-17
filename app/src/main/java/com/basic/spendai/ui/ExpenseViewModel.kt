@@ -68,6 +68,16 @@ data class ExpenseUiState(
     val smsImportEnabled: Boolean = false,
 )
 
+/**
+ * Home's headline numbers: this calendar month so far, and last month up to the same day and time
+ * (comparing against all of last month would make every early-month total look low).
+ */
+data class MonthSummary(
+    val expenses: List<Expense> = emptyList(),
+    val total: Double = 0.0,
+    val lastMonthToDate: Double? = null,
+)
+
 /** One question and its answer on the Ask screen. */
 data class AskEntry(
     val id: Long,
@@ -95,6 +105,10 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         ) { expenses, total, currency, pending, smsEnabled ->
             ExpenseUiState(expenses, total ?: 0.0, currency, pending, smsEnabled)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExpenseUiState())
+
+    val month: StateFlow<MonthSummary> =
+        dao.observeAll().map { all -> monthSummary(all, java.time.ZonedDateTime.now()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MonthSummary())
 
     /** Categories most-used first, for the add/edit sheet's chips. */
     val categoryOrder: StateFlow<List<Category>> =
@@ -329,4 +343,18 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         const val ACCURACY_WINDOW_MS = 30 * DAY_MS
         const val SNIPPET_CHARS = 160
     }
+}
+
+internal fun monthSummary(all: List<Expense>, now: java.time.ZonedDateTime): MonthSummary {
+    val zone = now.zone
+    val monthStart = now.toLocalDate().withDayOfMonth(1).atStartOfDay(zone)
+    val lastMonthStart = monthStart.minusMonths(1)
+    // Same moment last month (clamped by java.time for short months, e.g. Mar 31 -> Feb 28).
+    val lastMonthSameTime = now.minusMonths(1)
+    val thisMonth = all.filter { it.timestamp >= monthStart.toInstant().toEpochMilli() && it.timestamp <= now.toInstant().toEpochMilli() }
+    val lastMonth = all.filter {
+        it.timestamp >= lastMonthStart.toInstant().toEpochMilli() && it.timestamp <= lastMonthSameTime.toInstant().toEpochMilli()
+    }
+    val hasHistory = all.any { it.timestamp < monthStart.toInstant().toEpochMilli() }
+    return MonthSummary(thisMonth, thisMonth.sumOf { it.amount }, if (hasHistory) lastMonth.sumOf { it.amount } else null)
 }
