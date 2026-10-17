@@ -31,7 +31,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.customActions
@@ -39,8 +41,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 enum class RevealState { Closed, Open }
 
@@ -74,6 +76,7 @@ fun SwipeToRevealDelete(
         )
     }
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
 
     // Follow the parent: close when another row opens (or after a delete/undo).
     LaunchedEffect(open) {
@@ -82,7 +85,10 @@ fun SwipeToRevealDelete(
     }
     // Report swipes the user made.
     LaunchedEffect(state.settledValue) {
-        onOpenChange(state.settledValue == RevealState.Open)
+        val isOpen = state.settledValue == RevealState.Open
+        // A light tick when the Delete action snaps open (not on first composition).
+        if (isOpen) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+        onOpenChange(isOpen)
     }
 
     val offset = state.offset.takeIf { !it.isNaN() } ?: 0f
@@ -103,7 +109,10 @@ fun SwipeToRevealDelete(
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.error)
-                    .clickable(onClickLabel = "Delete") { onDelete() }
+                    .clickable(onClickLabel = "Delete") {
+                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                        onDelete()
+                    }
                     .semantics { role = Role.Button },
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,

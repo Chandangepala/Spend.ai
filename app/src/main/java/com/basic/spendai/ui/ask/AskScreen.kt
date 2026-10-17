@@ -1,7 +1,18 @@
 package com.basic.spendai.ui.ask
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -17,6 +28,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -38,10 +50,14 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -50,6 +66,7 @@ import com.basic.spendai.stats.Metric
 import com.basic.spendai.stats.PeriodStats
 import com.basic.spendai.ui.AskEntry
 import com.basic.spendai.ui.components.ClayCard
+import com.basic.spendai.ui.motion.LocalReducedMotion
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
 
@@ -129,7 +146,45 @@ fun AskScreen(history: List<AskEntry>, asking: Boolean, onAsk: (String) -> Unit,
                     )
                 }
             }
-            items(history, key = { it.id }) { entry -> AnswerCard(entry, Modifier.animateItem()) }
+            if (asking) item(key = "thinking") { ThinkingCard(Modifier.animateItem()) }
+            items(history, key = { it.id }) { entry ->
+                // New answers slide up into place; with reduced motion they just appear.
+                val reduced = LocalReducedMotion.current
+                val visible = remember { MutableTransitionState(reduced).apply { targetState = true } }
+                AnimatedVisibility(visibleState = visible, enter = slideInVertically { it / 3 } + fadeIn(), modifier = Modifier.animateItem()) {
+                    AnswerCard(entry)
+                }
+            }
+        }
+    }
+}
+
+/** Three dots pulsing in turn while the answer is worked out; static dots with reduced motion. */
+@Composable
+private fun ThinkingCard(modifier: Modifier = Modifier) {
+    val reduced = LocalReducedMotion.current
+    val transition = rememberInfiniteTransition(label = "thinking")
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
+        Row(
+            Modifier
+                .padding(horizontal = 20.dp, vertical = 18.dp)
+                .semantics { contentDescription = "Working out your answer" },
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            repeat(3) { i ->
+                val alpha = if (reduced) 0.6f else transition.animateFloat(
+                    initialValue = 0.25f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(450, delayMillis = i * 150), RepeatMode.Reverse),
+                    label = "dot$i",
+                ).value
+                Box(
+                    Modifier
+                        .size(8.dp)
+                        .graphicsLayer { this.alpha = alpha }
+                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                )
+            }
         }
     }
 }
