@@ -92,7 +92,9 @@ fun TransactionItem(expense: Expense, modifier: Modifier = Modifier, onClick: ((
                 "-${formatCurrency(expense.amount, LocalCurrency.current)}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = category.color,
+                // Text keeps the text colour (slate/orange amounts were unreadable in dark mode);
+                // the tinted icon carries the category.
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }

@@ -75,6 +75,7 @@ import com.basic.spendai.ui.app.AddExpenseFab
 import com.basic.spendai.ui.app.ExpenseActions
 import com.basic.spendai.ui.components.ClayCard
 import com.basic.spendai.ui.components.DuplicateDialog
+import com.basic.spendai.ui.components.EmptyState
 import com.basic.spendai.ui.components.clay
 import com.basic.spendai.ui.motion.SpendaiMotion
 import com.basic.spendai.ui.motion.staggeredEntrance
@@ -376,32 +377,12 @@ internal fun SwipeToDeleteItem(
 
 @Composable
 private fun EmptyState(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            ClayCard(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(96.dp),
-                cornerRadius = 48.dp,
-            ) {
-                Icon(
-                    Icons.Rounded.ReceiptLong,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .align(Alignment.Center),
-                )
-            }
-            Spacer(Modifier.height(20.dp))
-            Text("No expenses yet", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Tap \"Add expense\" to log your first one.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
+    EmptyState(
+        icon = Icons.Rounded.ReceiptLong,
+        title = "No expenses yet",
+        body = "Tap \"Add expense\" to log your first one, or turn on SMS detection in Settings.",
+        modifier = modifier,
+    )
 }
 
 private val previewState = ExpenseUiState(

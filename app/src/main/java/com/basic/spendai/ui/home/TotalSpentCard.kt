@@ -93,12 +93,12 @@ fun TotalSpentCard(
                         .background(onCard.copy(alpha = 0.2f)),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    shares.forEach { (category, amount) ->
+                    stripSegments(shares).forEach { segment ->
                         Box(
                             Modifier
-                                .weight(amount.toFloat())
+                                .weight(segment.amount.toFloat())
                                 .height(10.dp)
-                                .background(category.color)
+                                .background(segment.category?.color ?: onCard.copy(alpha = 0.55f))
                         )
                     }
                 }
@@ -106,7 +106,9 @@ fun TotalSpentCard(
                     Spacer(Modifier.height(10.dp))
                     // Wraps: labels like "Dining & Drinks" don't all fit on one line on a phone.
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        shares.take(3).forEach { (category, _) -> LegendDot(category, onCard) }
+                        stripSegments(shares).forEach { segment ->
+                            LegendDot(segment.label, segment.category?.color ?: onCard.copy(alpha = 0.55f), onCard)
+                        }
                     }
                 }
             }
@@ -114,17 +116,30 @@ fun TotalSpentCard(
     }
 }
 
+/** One piece of the strip: a named category, or (category = null) everything past the top few. */
+data class StripSegment(val category: Category?, val amount: Double, val label: String)
+
+/**
+ * Top [keep] categories as their own segments, the rest folded into one neutral "N more" segment,
+ * so every colour in the strip has a legend entry (identity is never colour alone).
+ */
+fun stripSegments(shares: List<Pair<Category, Double>>, keep: Int = 3): List<StripSegment> {
+    val top = shares.take(keep).map { (c, a) -> StripSegment(c, a, c.label) }
+    val rest = shares.drop(keep)
+    return if (rest.isEmpty()) top else top + StripSegment(null, rest.sumOf { it.second }, "${rest.size} more")
+}
+
 @Composable
-private fun LegendDot(category: Category, textColor: Color) {
+private fun LegendDot(label: String, dotColor: Color, textColor: Color) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
                 .size(8.dp)
                 .clip(CircleShape)
-                .background(category.color)
+                .background(dotColor)
         )
         Spacer(Modifier.size(4.dp))
-        Text(category.label, style = MaterialTheme.typography.labelSmall, color = textColor.copy(alpha = 0.9f))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = textColor.copy(alpha = 0.9f))
     }
 }
 

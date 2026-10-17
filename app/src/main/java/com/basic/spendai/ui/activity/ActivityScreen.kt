@@ -10,17 +10,26 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -42,10 +51,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.basic.spendai.data.Category
 import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.ExpenseViewModel
 import com.basic.spendai.ui.app.AddExpenseFab
 import com.basic.spendai.ui.app.ExpenseActions
+import com.basic.spendai.ui.components.EmptyState
 import com.basic.spendai.ui.detected.DetectedReview
 import com.basic.spendai.ui.home.ENTRANCE_MS
 import com.basic.spendai.ui.home.SwipeToDeleteItem
@@ -112,7 +123,7 @@ fun ActivityScreen(
                     }
             }
             when (section) {
-                ActivitySection.Expenses -> DayGroupedList(state.expenses, actions, Modifier.weight(1f))
+                ActivitySection.Expenses -> SearchableExpenses(state.expenses, actions, Modifier.weight(1f))
                 ActivitySection.Review -> DetectedReview(
                     detections = state.pendingDetections,
                     hidden = hidden,
@@ -133,20 +144,86 @@ fun ActivityScreen(
     }
 }
 
+/** Search box and category chips above the day-grouped list, with a results summary while filtering. */
+@Composable
+private fun SearchableExpenses(expenses: List<Expense>, actions: ExpenseActions, modifier: Modifier = Modifier) {
+    var query by rememberSaveable { mutableStateOf("") }
+    var picked by rememberSaveable { mutableStateOf(emptyList<Category>()) }
+    val shown = remember(expenses, query, picked) { filterExpenses(expenses, query, picked.toSet()) }
+    val filtering = query.isNotBlank() || picked.isNotEmpty()
+    // Only categories that actually have expenses get a chip.
+    val present = remember(expenses) { Category.entries.filter { c -> expenses.any { it.category == c } } }
+    val currency = LocalCurrency.current
+
+    Column(modifier) {
+        if (expenses.isNotEmpty()) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                // Short and single-line: the long hint wrapped and doubled the box's height.
+                placeholder = { Text("Search expenses", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { query = "" }) { Icon(Icons.Rounded.Close, contentDescription = "Clear search") }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+            )
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(present, key = { it.name }) { c ->
+                    val on = c in picked
+                    FilterChip(
+                        selected = on,
+                        onClick = { picked = if (on) picked - c else picked + c },
+                        label = { Text(c.label) },
+                        leadingIcon = { Icon(c.icon, contentDescription = null, tint = c.color, modifier = Modifier.size(18.dp)) },
+                    )
+                }
+            }
+            if (filtering) {
+                Text(
+                    "${shown.size} ${if (shown.size == 1) "result" else "results"} · ${formatCurrency(shown.sumOf { it.amount }, currency)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 24.dp, top = 4.dp),
+                )
+            }
+        }
+        when {
+            expenses.isEmpty() -> EmptyState(
+                icon = Icons.AutoMirrored.Rounded.ReceiptLong,
+                title = "No expenses yet",
+                body = "Add one with the button below, type a quick note, or scan a receipt.",
+                actionLabel = "Add expense",
+                onAction = actions::add,
+            )
+            shown.isEmpty() -> EmptyState(
+                icon = Icons.Rounded.SearchOff,
+                title = "Nothing matches",
+                body = "Try another word or amount, or clear the filters.",
+                actionLabel = "Clear filters",
+                onAction = {
+                    query = ""
+                    picked = emptyList()
+                },
+            )
+            else -> DayGroupedList(shown, actions, Modifier.weight(1f))
+        }
+    }
+}
+
 /** Expenses under pinned day headers ("Today", "Yesterday", "Tue, Oct 14") with each day's total. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DayGroupedList(expenses: List<Expense>, actions: ExpenseActions, modifier: Modifier = Modifier) {
-    if (expenses.isEmpty()) {
-        Box(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-            Text(
-                "No expenses yet. Tap \"Add expense\" to log one.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        return
-    }
     val zone = remember { ZoneId.systemDefault() }
     val days = remember(expenses) {
         expenses.groupBy { Instant.ofEpochMilli(it.timestamp).atZone(zone).toLocalDate() }.toSortedMap(compareByDescending { it })
