@@ -38,6 +38,8 @@ import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.insights.MonthTotal
 import com.basic.spendai.insights.niceCeiling
 import com.basic.spendai.ui.components.ClayCard
+import com.basic.spendai.ui.motion.animatedAmount
+import com.basic.spendai.ui.motion.growFraction
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
 import java.time.format.TextStyle
@@ -79,7 +81,7 @@ fun MonthlyTrendCard(months: List<MonthTotal>, modifier: Modifier = Modifier) {
 
             // The selected month's value, large: the tap-to-read "tooltip" for a touch screen.
             Text(monthName(pick, long = true), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-            Text(formatCurrency(pick.total, currency), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(formatCurrency(animatedAmount(pick.total), currency), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             // The scale label sits above the plot, never inside it where a tall bar would run into it.
             Text(
@@ -110,7 +112,7 @@ fun MonthlyTrendCard(months: List<MonthTotal>, modifier: Modifier = Modifier) {
                                 .semantics { contentDescription = "${monthName(m, long = true)}: ${formatCurrency(m.total, currency)}" },
                             contentAlignment = Alignment.BottomCenter,
                         ) {
-                            val fraction = (m.total / axisMax).toFloat().coerceIn(0f, 1f)
+                            val fraction = growFraction((m.total / axisMax).toFloat().coerceIn(0f, 1f), delayMs = i * 50)
                             Box(
                                 Modifier
                                     .width(min(MaxBarWidth, maxWidth * 0.5f))

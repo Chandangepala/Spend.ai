@@ -1,6 +1,7 @@
 package com.basic.spendai.ui.home
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,7 +12,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.lerp
@@ -23,6 +26,7 @@ import com.basic.spendai.data.Category
 import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.components.ClayCard
 import com.basic.spendai.ui.components.clay
+import com.basic.spendai.ui.motion.pressScale
 import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
@@ -30,12 +34,15 @@ import com.basic.spendai.util.formatDate
 
 @Composable
 fun TransactionItem(expense: Expense, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+    val interaction = remember { MutableInteractionSource() }
     val category = expense.category
     val surface = MaterialTheme.colorScheme.surface
 
     ClayCard(
         color = surface,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .pressScale(interaction),
         cornerRadius = 24.dp,
         elevation = 8.dp,
     ) {
@@ -43,7 +50,13 @@ fun TransactionItem(expense: Expense, modifier: Modifier = Modifier, onClick: ((
             // Clickable inside the card, so the ripple follows its rounded shape.
             modifier = Modifier
                 .fillMaxWidth()
-                .then(if (onClick != null) Modifier.clickable(onClickLabel = "Edit", onClick = onClick) else Modifier)
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(interactionSource = interaction, indication = ripple(), onClickLabel = "Edit", onClick = onClick)
+                    } else {
+                        Modifier
+                    }
+                )
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

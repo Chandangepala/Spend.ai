@@ -3,9 +3,9 @@ package com.basic.spendai.ui.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.basic.spendai.data.Category
 import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.components.ClayCard
+import com.basic.spendai.ui.motion.animatedAmount
 import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
@@ -69,7 +70,7 @@ fun TotalSpentCard(
                 Text(label, style = MaterialTheme.typography.titleMedium, color = onCard.copy(alpha = 0.9f))
             }
             Spacer(Modifier.height(16.dp))
-            Text(formatCurrency(total, LocalCurrency.current), style = MaterialTheme.typography.displaySmall, color = onCard)
+            Text(formatCurrency(animatedAmount(total), LocalCurrency.current), style = MaterialTheme.typography.displaySmall, color = onCard)
             Text(
                 text = when (expenses.size) {
                     1 -> "1 transaction"

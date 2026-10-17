@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.basic.spendai.data.Category
 import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.components.ClayCard
+import com.basic.spendai.ui.motion.growFraction
 import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
@@ -59,8 +60,8 @@ fun CategoryBreakdown(expenses: List<Expense>, modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            totals.forEach { (category, amount) ->
-                CategoryRow(category, amount, fraction = (amount / grandTotal).toFloat())
+            totals.forEachIndexed { i, (category, amount) ->
+                CategoryRow(category, amount, fraction = (amount / grandTotal).toFloat(), growDelayMs = i * 60)
             }
         }
     }
@@ -71,7 +72,8 @@ fun CategoryBreakdown(expenses: List<Expense>, modifier: Modifier = Modifier) {
  * blindness), amounts use text colours, and the bar is rounded only at its data end.
  */
 @Composable
-private fun CategoryRow(category: Category, amount: Double, fraction: Float) {
+private fun CategoryRow(category: Category, amount: Double, fraction: Float, growDelayMs: Int = 0) {
+    val shown = growFraction(fraction, growDelayMs)
     Column(Modifier.semantics(mergeDescendants = true) {}) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(category.icon, contentDescription = null, tint = category.color, modifier = Modifier.size(18.dp))
@@ -99,7 +101,7 @@ private fun CategoryRow(category: Category, amount: Double, fraction: Float) {
         ) {
             Box(
                 Modifier
-                    .fillMaxWidth(fraction)
+                    .fillMaxWidth(shown)
                     .height(6.dp)
                     .clip(RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
                     .background(category.color)

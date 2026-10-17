@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -75,13 +76,19 @@ import com.basic.spendai.ui.app.ExpenseActions
 import com.basic.spendai.ui.components.ClayCard
 import com.basic.spendai.ui.components.DuplicateDialog
 import com.basic.spendai.ui.components.clay
+import com.basic.spendai.ui.motion.SpendaiMotion
+import com.basic.spendai.ui.motion.staggeredEntrance
 import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
 import kotlin.math.abs
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+
+/** Long enough for the first rows' staggered entrance to finish. */
+internal const val ENTRANCE_MS = SpendaiMotion.STAGGER_MAX_ITEMS * SpendaiMotion.STAGGER_MS + 400
 
 /** How many expenses Home lists before "See all" (the full list lives in Activity). */
 private const val RECENT_COUNT = 5
@@ -314,13 +321,19 @@ private fun TransactionsPane(
             // At most one row shows its Delete action at a time.
             var openId by rememberSaveable { mutableStateOf<Long?>(null) }
             LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress) openId = null }
+            // Rows stagger in only the first time this list appears (not on tab switches or scrolling).
+            var entered by rememberSaveable { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                delay(ENTRANCE_MS)
+                entered = true
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 112.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                items(expenses, key = { it.id }) { expense ->
+                itemsIndexed(expenses, key = { _, e -> e.id }) { index, expense ->
                     // An undone row comes back with the same id, so the list would reuse its
                     // swiped-away state; a new undoCount gives every row a fresh, settled state.
                     key(undoCount) {
@@ -335,7 +348,9 @@ private fun TransactionsPane(
                                 onDelete(expense)
                             },
                             onEdit = { onEdit(expense) },
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier
+                                .animateItem()
+                                .staggeredEntrance(index, enabled = !entered),
                         )
                     }
                 }

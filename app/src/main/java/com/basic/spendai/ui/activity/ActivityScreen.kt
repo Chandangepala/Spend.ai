@@ -47,7 +47,9 @@ import com.basic.spendai.ui.ExpenseViewModel
 import com.basic.spendai.ui.app.AddExpenseFab
 import com.basic.spendai.ui.app.ExpenseActions
 import com.basic.spendai.ui.detected.DetectedReview
+import com.basic.spendai.ui.home.ENTRANCE_MS
 import com.basic.spendai.ui.home.SwipeToDeleteItem
+import com.basic.spendai.ui.motion.staggeredEntrance
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
 import java.time.Instant
@@ -55,6 +57,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 enum class ActivitySection { Expenses, Review }
 
@@ -153,6 +156,13 @@ private fun DayGroupedList(expenses: List<Expense>, actions: ExpenseActions, mod
     // At most one row shows its Delete action at a time.
     var openId by rememberSaveable { mutableStateOf<Long?>(null) }
     LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress) openId = null }
+    val position = remember(expenses) { expenses.withIndex().associate { (i, e) -> e.id to i } }
+    // Rows stagger in only the first time this list appears (not on tab switches or scrolling).
+    var entered by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(ENTRANCE_MS)
+        entered = true
+    }
 
     LazyColumn(
         state = listState,
@@ -190,7 +200,9 @@ private fun DayGroupedList(expenses: List<Expense>, actions: ExpenseActions, mod
                             actions.delete(expense)
                         },
                         onEdit = { actions.edit(expense) },
-                        modifier = Modifier.animateItem(),
+                        modifier = Modifier
+                            .animateItem()
+                            .staggeredEntrance(position[expense.id] ?: Int.MAX_VALUE, enabled = !entered),
                     )
                 }
             }

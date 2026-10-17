@@ -31,6 +31,7 @@ import com.basic.spendai.ui.ExpenseViewModel
 import com.basic.spendai.ui.components.DuplicateDialog
 import com.basic.spendai.ui.components.clay
 import com.basic.spendai.ui.home.AddExpenseSheet
+import com.basic.spendai.ui.motion.LocalChromeVisible
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -145,11 +146,12 @@ fun ExpenseActionsHost(actions: ExpenseActions, viewModel: ExpenseViewModel) {
     }
 }
 
-/** The clay "Add expense" button used on Home and Activity. */
+/** The clay "Add expense" button used on Home and Activity; shrinks to "+" while the bar is hidden. */
 @Composable
 fun AddExpenseFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
     ExtendedFloatingActionButton(
         onClick = onClick,
+        expanded = LocalChromeVisible.current,
         icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
         text = { Text("Add expense") },
         shape = RoundedCornerShape(24.dp),
