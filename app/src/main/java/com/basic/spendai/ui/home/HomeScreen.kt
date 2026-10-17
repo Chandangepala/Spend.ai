@@ -69,7 +69,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.data.Category
 import com.basic.spendai.data.Expense
+import com.basic.spendai.budgets.BudgetLevel
+import com.basic.spendai.budgets.BudgetProgress
 import com.basic.spendai.ui.ExpenseUiState
+import com.basic.spendai.ui.budgets.statusColor
+import com.basic.spendai.ui.budgets.statusIcon
 import com.basic.spendai.ui.ExpenseViewModel
 import com.basic.spendai.ui.app.AddExpenseFab
 import com.basic.spendai.ui.app.ExpenseActions
@@ -103,8 +107,10 @@ fun HomeScreen(
     onSeeAll: () -> Unit,
     onReview: () -> Unit,
     onOpenInsights: () -> Unit,
+    onOpenBudgets: () -> Unit = onOpenInsights,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val budgets by viewModel.budgets.collectAsStateWithLifecycle()
     val month by viewModel.month.collectAsStateWithLifecycle()
     val insight by viewModel.weeklyInsight.collectAsStateWithLifecycle()
     val layoutInfo = rememberHomeLayoutInfo()
@@ -140,6 +146,8 @@ fun HomeScreen(
                 hasInsight = insight != null,
                 onReview = onReview,
                 onOpenInsights = onOpenInsights,
+                budgetAlerts = budgets.filter { it.level != BudgetLevel.OK },
+                onOpenBudgets = onOpenBudgets,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp),
             )
             HomeContent(
@@ -179,9 +187,21 @@ private fun HomeShortcuts(
     onReview: () -> Unit,
     onOpenInsights: () -> Unit,
     modifier: Modifier = Modifier,
+    budgetAlerts: List<BudgetProgress> = emptyList(),
+    onOpenBudgets: () -> Unit = {},
 ) {
-    if (toReview == 0 && !hasInsight) return
+    if (toReview == 0 && !hasInsight && budgetAlerts.isEmpty()) return
     FlowRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Budgets near or over their limit come first: they're the ones to act on this month.
+        budgetAlerts.forEach { p ->
+            AssistChip(
+                onClick = onOpenBudgets,
+                label = {
+                    Text(if (p.level == BudgetLevel.OVER) "${p.category.label}: over budget" else "${p.category.label}: ${p.percent}% of budget")
+                },
+                leadingIcon = { Icon(statusIcon(p.level), contentDescription = null, tint = statusColor(p.level)) },
+            )
+        }
         if (toReview > 0) {
             AssistChip(
                 onClick = onReview,

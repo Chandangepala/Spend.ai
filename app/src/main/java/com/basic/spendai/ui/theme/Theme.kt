@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 private val DarkColorScheme = darkColorScheme(
     primary = Green80,
     onPrimary = Green20,
+    // Snackbar action text (Material's default is purple).
+    inversePrimary = Green40,
     primaryContainer = Green30,
     onPrimaryContainer = Green90,
     secondary = Teal80,
@@ -44,6 +46,8 @@ private val DarkColorScheme = darkColorScheme(
 private val LightColorScheme = lightColorScheme(
     primary = Green40,
     onPrimary = Color.White,
+    // Snackbar action text (Material's default is purple).
+    inversePrimary = Green80,
     primaryContainer = Green90,
     onPrimaryContainer = Green30,
     secondary = Teal40,

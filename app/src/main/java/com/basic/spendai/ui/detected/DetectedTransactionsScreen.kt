@@ -65,6 +65,7 @@ import com.basic.spendai.data.AiState
 import com.basic.spendai.data.Category
 import com.basic.spendai.data.DetectedTransaction
 import com.basic.spendai.data.Expense
+import com.basic.spendai.ui.components.AiBadge
 import com.basic.spendai.ui.components.ClayCard
 import com.basic.spendai.ui.components.DuplicateDialog
 import com.basic.spendai.ui.components.EmptyState
@@ -374,28 +375,6 @@ private fun DetectedItem(
                 }
             }
         }
-    }
-}
-
-/** Marks a row the on-device model tidied up, so users know where the name and category came from. */
-@Composable
-private fun AiBadge() {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.primaryContainer)
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-            .semantics(mergeDescendants = true) { contentDescription = "Suggested by on-device AI" },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            Icons.Rounded.AutoAwesome,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(12.dp),
-        )
-        Spacer(Modifier.size(2.dp))
-        Text("AI", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
     }
 }
 

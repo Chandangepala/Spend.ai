@@ -31,8 +31,7 @@ object InsightWriter : AiTask<InsightWriter.Input, String>() {
     override fun parse(reply: String, input: Input): String? {
         val text = reply.trim().trim('"').takeIf { it.length in 20..MAX_CHARS } ?: return null
         val factText = facts(input).joinToString(" ")
-        // "Loan" is fine when it's the name of a payment ("HDFC Loan EMI"), not when the model brings it up.
-        if (adviceWords.findAll(text).any { !factText.contains(it.value, ignoreCase = true) }) return null
+        if (AdviceGuard.givesAdvice(text, factText)) return null
         return text.takeIf { NumberCheck.onlyKnownNumbers(it, factText) }
     }
 
@@ -96,9 +95,6 @@ object InsightWriter : AiTask<InsightWriter.Input, String>() {
     }
 
     private fun ratio(r: Double) = if (r == r.roundToInt().toDouble()) r.roundToInt().toString() else r.toString()
-
-    // Coaching only: replies that drift into financial products are rejected.
-    private val adviceWords = Regex("""\b(invest\w*|stocks?|shares|mutual funds?|crypto\w*|loans?|credit (score|card)s?|tax(es)?)\b""", RegexOption.IGNORE_CASE)
 
     private const val MAX_CHARS = 420
 }
