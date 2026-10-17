@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -87,17 +88,6 @@ fun DetectedTransactionsScreen(
     var showHidden by rememberSaveable { mutableStateOf(false) }
     // Leaving the hidden view goes back to the review list first.
     BackHandler(onBack = { if (showHidden) showHidden = false else onBack() })
-    val shown = if (showHidden) hidden else detections
-    val scope = rememberCoroutineScope()
-    var duplicate by remember { mutableStateOf<Pair<Expense, () -> Unit>?>(null) }
-    var renaming by remember { mutableStateOf<DetectedTransaction?>(null) }
-
-    val acceptChecked: (DetectedTransaction, Category) -> Unit = { detection, category ->
-        scope.launch {
-            val existing = findDuplicate(detection.amount, detection.timestamp)
-            if (existing == null) onAccept(detection, category) else duplicate = existing to { onAccept(detection, category) }
-        }
-    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -125,51 +115,108 @@ fun DetectedTransactionsScreen(
             )
         },
     ) { innerPadding ->
-        if (shown.isEmpty()) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center,
-            ) {
+        DetectedReview(
+            detections = detections,
+            hidden = hidden,
+            showHidden = showHidden,
+            onShowHiddenChange = { showHidden = it },
+            onAccept = onAccept,
+            onDismiss = onDismiss,
+            onAcceptAll = onAcceptAll,
+            onRestore = onRestore,
+            onRename = onRename,
+            findDuplicate = findDuplicate,
+            showToolbar = false,
+            modifier = Modifier.padding(innerPadding),
+        )
+    }
+}
+
+/**
+ * The review list itself, without a screen around it: used full-screen above and inside the
+ * Activity tab's "To review" section. [showToolbar] adds the Hidden/Add all row when there's no
+ * top app bar to hold them.
+ */
+@Composable
+fun DetectedReview(
+    detections: List<DetectedTransaction>,
+    hidden: List<DetectedTransaction>,
+    showHidden: Boolean,
+    onShowHiddenChange: (Boolean) -> Unit,
+    onAccept: (DetectedTransaction, Category) -> Unit,
+    onDismiss: (DetectedTransaction) -> Unit,
+    onAcceptAll: () -> Unit,
+    onRestore: (DetectedTransaction) -> Unit,
+    onRename: (DetectedTransaction, String) -> Unit,
+    findDuplicate: suspend (amount: Double, timestamp: Long) -> Expense?,
+    showToolbar: Boolean,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(20.dp),
+) {
+    val shown = if (showHidden) hidden else detections
+    val scope = rememberCoroutineScope()
+    var duplicate by remember { mutableStateOf<Pair<Expense, () -> Unit>?>(null) }
+    var renaming by remember { mutableStateOf<DetectedTransaction?>(null) }
+
+    val acceptChecked: (DetectedTransaction, Category) -> Unit = { detection, category ->
+        scope.launch {
+            val existing = findDuplicate(detection.amount, detection.timestamp)
+            if (existing == null) onAccept(detection, category) else duplicate = existing to { onAccept(detection, category) }
+        }
+    }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = 720.dp),
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        if (showToolbar && (showHidden || hidden.isNotEmpty() || detections.isNotEmpty())) {
+            item(key = "toolbar") {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    if (showHidden) {
+                        TextButton(onClick = { onShowHiddenChange(false) }) { Text("Back to review") }
+                    } else {
+                        if (hidden.isNotEmpty()) TextButton(onClick = { onShowHiddenChange(true) }) { Text("Hidden (${hidden.size})") }
+                        if (detections.isNotEmpty()) TextButton(onClick = onAcceptAll) { Text("Add all") }
+                    }
+                }
+            }
+        }
+        if (showHidden && shown.isNotEmpty()) {
+            item {
                 Text(
-                    if (showHidden) "Nothing hidden." else "All caught up. New bank SMS will show up here.",
+                    "On-device AI thought these weren't real spends (offers, reminders…). Restore any it got wrong.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .wrapContentWidth(Alignment.CenterHorizontally)
-                    .widthIn(max = 720.dp),
-                contentPadding = PaddingValues(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                if (showHidden) {
-                    item {
-                        Text(
-                            "On-device AI thought these weren't real spends (offers, reminders…). Restore any it got wrong.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                items(shown, key = { it.id }) { detection ->
-                    DetectedItem(
-                        detection = detection,
-                        hiddenMode = showHidden,
-                        onAccept = { category -> acceptChecked(detection, category) },
-                        onDismiss = { onDismiss(detection) },
-                        onRestore = { onRestore(detection) },
-                        onRename = { renaming = detection },
-                        modifier = Modifier.animateItem(),
-                    )
-                }
+        }
+        if (shown.isEmpty()) {
+            item(key = "empty") {
+                Text(
+                    if (showHidden) "Nothing hidden." else "All caught up. New bank SMS will show up here.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 48.dp),
+                    textAlign = TextAlign.Center,
+                )
             }
+        }
+        items(shown, key = { it.id }) { detection ->
+            DetectedItem(
+                detection = detection,
+                hiddenMode = showHidden,
+                onAccept = { category -> acceptChecked(detection, category) },
+                onDismiss = { onDismiss(detection) },
+                onRestore = { onRestore(detection) },
+                onRename = { renaming = detection },
+                modifier = Modifier.animateItem(),
+            )
         }
     }
 
@@ -350,32 +397,6 @@ private fun AiBadge() {
         )
         Spacer(Modifier.size(2.dp))
         Text("AI", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-    }
-}
-
-/** Shown on Home when there are SMS detections waiting for review. */
-@Composable
-fun DetectedBanner(count: Int, onReview: () -> Unit, modifier: Modifier = Modifier) {
-    ClayCard(
-        color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = modifier.fillMaxWidth(),
-        cornerRadius = 24.dp,
-        elevation = 6.dp,
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Rounded.Sms, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.size(12.dp))
-            Text(
-                if (count == 1) "1 transaction detected from SMS" else "$count transactions detected from SMS",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onReview) { Text("Review") }
-        }
     }
 }
 

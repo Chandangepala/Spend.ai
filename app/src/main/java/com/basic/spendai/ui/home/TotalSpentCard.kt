@@ -41,6 +41,9 @@ fun TotalSpentCard(
     expenses: List<Expense>,
     modifier: Modifier = Modifier,
     showLegend: Boolean = true,
+    label: String = "Total Spent",
+    /** e.g. "₹1,200 less than this time last month"; shown under the count. */
+    comparison: String? = null,
 ) {
     val onCard = MaterialTheme.colorScheme.onPrimary
     val shares = remember(expenses) { categoryTotals(expenses) }
@@ -63,7 +66,7 @@ fun TotalSpentCard(
                     Icon(Icons.Rounded.AccountBalanceWallet, contentDescription = null, tint = onCard)
                 }
                 Spacer(Modifier.size(12.dp))
-                Text("Total Spent", style = MaterialTheme.typography.titleMedium, color = onCard.copy(alpha = 0.9f))
+                Text(label, style = MaterialTheme.typography.titleMedium, color = onCard.copy(alpha = 0.9f))
             }
             Spacer(Modifier.height(16.dp))
             Text(formatCurrency(total, LocalCurrency.current), style = MaterialTheme.typography.displaySmall, color = onCard)
@@ -75,6 +78,9 @@ fun TotalSpentCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = onCard.copy(alpha = 0.8f),
             )
+            comparison?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = onCard.copy(alpha = 0.8f))
+            }
 
             if (shares.isNotEmpty()) {
                 Spacer(Modifier.height(18.dp))

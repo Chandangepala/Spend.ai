@@ -66,8 +66,10 @@ fun SettingsScreen(
     onDownloadAi: () -> Unit = {},
     insightsNotify: Boolean = false,
     onInsightsNotifyChange: (Boolean) -> Unit = {},
+    /** False inside the app's navigation, which handles system back (with predictive back). */
+    handleSystemBack: Boolean = true,
 ) {
-    BackHandler(onBack = onBack)
+    if (handleSystemBack) BackHandler(onBack = onBack)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
