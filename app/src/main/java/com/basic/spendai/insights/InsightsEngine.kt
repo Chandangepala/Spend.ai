@@ -113,6 +113,12 @@ class InsightsEngine(private val zone: ZoneId = ZoneId.systemDefault()) {
         return Finding.WeekendSpike(weekendPerDay, weekdayPerDay, (weekendPerDay / weekdayPerDay * 10).roundToInt() / 10.0)
     }
 
+    /** Repeating payments over the last 4 months, for the Insights tab (null when none). */
+    fun repeatingPayments(expenses: List<Expense>, now: Instant): Finding.Subscriptions? {
+        val from = now.atZone(zone).toLocalDate().minusDays(SUBSCRIPTION_LOOKBACK_DAYS).atStartOfDay(zone).toInstant().toEpochMilli()
+        return subscriptions(expenses.filter { it.timestamp in from..now.toEpochMilli() }, now)
+    }
+
     /** Charges from the same merchant 25–35 days apart with amounts within 10%, still active in the last 40 days. */
     private fun subscriptions(recent: List<Expense>, now: Instant): Finding.Subscriptions? {
         val items = recent.groupBy { it.title.trim().lowercase() }.mapNotNull { (_, charges) ->

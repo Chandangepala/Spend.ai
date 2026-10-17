@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -65,23 +66,21 @@ fun CategoryBreakdown(expenses: List<Expense>, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * One category: icon + name carry identity (14 hues can't all be told apart, especially with colour
+ * blindness), amounts use text colours, and the bar is rounded only at its data end.
+ */
 @Composable
 private fun CategoryRow(category: Category, amount: Double, fraction: Float) {
-    Column {
+    Column(Modifier.semantics(mergeDescendants = true) {}) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
-                    .background(category.color)
-            )
+            Icon(category.icon, contentDescription = null, tint = category.color, modifier = Modifier.size(18.dp))
             Spacer(Modifier.size(8.dp))
             Text(category.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Text(
                 formatCurrency(amount, LocalCurrency.current),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = category.color,
             )
             Text(
                 "${(fraction * 100).roundToInt()}%",
@@ -95,14 +94,14 @@ private fun CategoryRow(category: Category, amount: Double, fraction: Float) {
             Modifier
                 .fillMaxWidth()
                 .height(6.dp)
-                .clip(RoundedCornerShape(50))
-                .background(category.color.copy(alpha = 0.15f))
+                .clip(RoundedCornerShape(3.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Box(
                 Modifier
                     .fillMaxWidth(fraction)
                     .height(6.dp)
-                    .clip(RoundedCornerShape(50))
+                    .clip(RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
                     .background(category.color)
             )
         }

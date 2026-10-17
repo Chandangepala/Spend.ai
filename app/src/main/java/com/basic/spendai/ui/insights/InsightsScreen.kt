@@ -27,12 +27,14 @@ import com.basic.spendai.ui.ExpenseViewModel
 import com.basic.spendai.ui.home.CategoryBreakdown
 import com.basic.spendai.ui.home.InsightCard
 
-/** The weekly summary and where this month's money went. Charts and budgets join in later PRs. */
+/** The weekly summary, the monthly trend, where this month's money went, and repeating payments. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit) {
     val insight by viewModel.weeklyInsight.collectAsStateWithLifecycle()
     val month by viewModel.month.collectAsStateWithLifecycle()
+    val months by viewModel.monthlyTotals.collectAsStateWithLifecycle()
+    val repeating by viewModel.repeatingPayments.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -62,10 +64,13 @@ fun InsightsScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            item(key = "trend") { MonthlyTrendCard(months) }
             item(key = "month") {
-                Text("This month", style = MaterialTheme.typography.titleMedium)
+                Text("This month", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
             }
             item(key = "breakdown") { CategoryBreakdown(month.expenses) }
+            // Budgets (Phase 7) will slot in here, next to where the money goes.
+            item(key = "repeating") { RepeatingPaymentsCard(repeating) }
         }
     }
 }
