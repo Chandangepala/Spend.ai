@@ -28,7 +28,11 @@ import com.basic.spendai.data.ExpenseDatabase
 import com.basic.spendai.data.MerchantAlias
 import com.basic.spendai.data.MerchantCategory
 import com.basic.spendai.data.SettingsRepository
+import com.basic.spendai.insights.Finding
+import com.basic.spendai.insights.InsightsEngine
 import com.basic.spendai.insights.InsightsRepository
+import com.basic.spendai.insights.MonthTotal
+import com.basic.spendai.insights.monthlyTotals
 import com.basic.spendai.insights.WeeklyInsightsWorker
 import com.basic.spendai.receipt.ReceiptPhotos
 import com.basic.spendai.receipt.ReceiptScanner
@@ -109,6 +113,16 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
     val month: StateFlow<MonthSummary> =
         dao.observeAll().map { all -> monthSummary(all, java.time.ZonedDateTime.now()) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MonthSummary())
+
+    /** The last 6 calendar months, for the Insights trend chart. */
+    val monthlyTotals: StateFlow<List<MonthTotal>> =
+        dao.observeAll().map { monthlyTotals(it, java.time.Instant.now()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Payments that repeat about monthly, worked out live from all expenses. */
+    val repeatingPayments: StateFlow<Finding.Subscriptions?> =
+        dao.observeAll().map { InsightsEngine().repeatingPayments(it, java.time.Instant.now()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Categories most-used first, for the add/edit sheet's chips. */
     val categoryOrder: StateFlow<List<Category>> =
