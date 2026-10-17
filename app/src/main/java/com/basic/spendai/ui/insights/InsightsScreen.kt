@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.basic.spendai.ui.ExpenseViewModel
+import com.basic.spendai.ui.components.EmptyState
 import com.basic.spendai.ui.home.CategoryBreakdown
 import com.basic.spendai.ui.home.InsightCard
 
@@ -57,6 +59,16 @@ fun InsightsScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit) {
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (months.all { it.total == 0.0 } && repeating == null) {
+                item(key = "empty") {
+                    EmptyState(
+                        icon = Icons.Rounded.Insights,
+                        title = "Insights appear as you spend",
+                        body = "Add a few expenses and this tab fills in: your week, your months, and where the money goes.",
+                    )
+                }
+                return@LazyColumn
+            }
             item(key = "week") {
                 insight?.let { InsightCard(it) } ?: Text(
                     "Your weekly summary appears here after your first week of spending.",

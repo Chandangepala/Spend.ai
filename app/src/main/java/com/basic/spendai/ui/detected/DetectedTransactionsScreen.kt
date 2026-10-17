@@ -24,7 +24,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.MarkEmailRead
 import androidx.compose.material.icons.rounded.Sms
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -65,6 +67,7 @@ import com.basic.spendai.data.DetectedTransaction
 import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.components.ClayCard
 import com.basic.spendai.ui.components.DuplicateDialog
+import com.basic.spendai.ui.components.EmptyState
 import com.basic.spendai.ui.components.clay
 import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.util.LocalCurrency
@@ -196,15 +199,11 @@ fun DetectedReview(
         }
         if (shown.isEmpty()) {
             item(key = "empty") {
-                Text(
-                    if (showHidden) "Nothing hidden." else "All caught up. New bank SMS will show up here.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 48.dp),
-                    textAlign = TextAlign.Center,
-                )
+                if (showHidden) {
+                    EmptyState(icon = Icons.Rounded.VisibilityOff, title = "Nothing hidden", body = "SMS the AI sets aside as offers or reminders appear here.")
+                } else {
+                    EmptyState(icon = Icons.Rounded.MarkEmailRead, title = "All caught up", body = "New bank SMS will show up here for you to add or dismiss.")
+                }
             }
         }
         items(shown, key = { it.id }) { detection ->
@@ -317,7 +316,7 @@ private fun DetectedItem(
                     "-${formatCurrency(detection.amount, LocalCurrency.current)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = category.color,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
