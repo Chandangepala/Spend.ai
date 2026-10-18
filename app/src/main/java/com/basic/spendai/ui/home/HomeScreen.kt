@@ -111,6 +111,8 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val budgets by viewModel.budgets.collectAsStateWithLifecycle()
+    val showGemmaOffer by viewModel.showGemmaOffer.collectAsStateWithLifecycle()
+    val aiState by viewModel.aiState.collectAsStateWithLifecycle()
     val month by viewModel.month.collectAsStateWithLifecycle()
     val insight by viewModel.weeklyInsight.collectAsStateWithLifecycle()
     val layoutInfo = rememberHomeLayoutInfo()
@@ -150,6 +152,15 @@ fun HomeScreen(
                 onOpenBudgets = onOpenBudgets,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp),
             )
+            if (showGemmaOffer) {
+                GemmaOfferCard(
+                    state = aiState.gemma,
+                    onDownload = viewModel::downloadGemma,
+                    onNotNow = viewModel::dismissGemmaOffer,
+                    onCancel = viewModel::cancelGemma,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
+                )
+            }
             HomeContent(
                 state = ExpenseUiState(expenses = month.expenses, total = month.total),
                 layoutInfo = layoutInfo,

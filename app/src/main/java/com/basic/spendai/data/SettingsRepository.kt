@@ -47,6 +47,13 @@ class SettingsRepository(context: Context) {
         dataStore.edit { it[INSIGHTS_NOTIFY_KEY] = enabled }
     }
 
+    /** The user tapped "Not now" on Home's one-time Gemma offer (Settings still has the download). */
+    val gemmaOfferDismissed: Flow<Boolean> = dataStore.data.map { it[GEMMA_OFFER_DISMISSED_KEY] ?: false }
+
+    suspend fun dismissGemmaOffer() {
+        dataStore.edit { it[GEMMA_OFFER_DISMISSED_KEY] = true }
+    }
+
     suspend fun setLastSmsScanAt(timestamp: Long) {
         dataStore.edit { it[LAST_SMS_SCAN_KEY] = timestamp }
     }
@@ -57,5 +64,6 @@ class SettingsRepository(context: Context) {
         val LAST_SMS_SCAN_KEY = longPreferencesKey("last_sms_scan_at")
         val AI_ENABLED_KEY = booleanPreferencesKey("ai_enabled")
         val INSIGHTS_NOTIFY_KEY = booleanPreferencesKey("insights_notify")
+        val GEMMA_OFFER_DISMISSED_KEY = booleanPreferencesKey("gemma_offer_dismissed")
     }
 }

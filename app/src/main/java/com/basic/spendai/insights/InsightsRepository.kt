@@ -28,15 +28,19 @@ class InsightsRepository(context: Context) {
     }
 
     /**
-     * Writes the summary for the latest report if it has none. Call from the foreground: Gemini Nano
-     * refuses background calls, and the template covers phones without it.
+     * Writes the summary for the latest report if it has none, and returns the latest summary.
+     * Gemini Nano refuses background calls, so the foreground passes [saveTemplate] = true (the
+     * template covers phones without a model); background runs with Gemma pass false, leaving a
+     * failed attempt for the next app open.
      */
-    suspend fun writeSummaryIfMissing(provider: AiProvider, currency: AppCurrency) {
-        val latest = insightDao.latest() ?: return
-        if (latest.summary != null) return
-        val report = decode(latest) ?: return
+    suspend fun writeSummaryIfMissing(provider: AiProvider, currency: AppCurrency, saveTemplate: Boolean = true): String? {
+        val latest = insightDao.latest() ?: return null
+        if (latest.summary != null) return latest.summary
+        val report = decode(latest) ?: return null
         val result = InsightWriter.run(provider, InsightWriter.Input(report, currency))
+        if (!result.fromAi && !saveTemplate) return null
         insightDao.setSummary(latest.weekFrom, result.value, result.fromAi)
+        return result.value
     }
 
     companion object {

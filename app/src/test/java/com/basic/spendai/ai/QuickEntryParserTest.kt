@@ -101,4 +101,25 @@ class QuickEntryParserTest {
         )
         assertFalse(QuickEntryParser.run(provider, "200 chai and samosa").fromAi)
     }
+
+    @Test
+    fun droppedItemFallsBackToRules() = runTest {
+        // What Gemma 1B returned on a Pixel 6a: the auto ride vanished.
+        val provider = FakeAiProvider("""[{"title":"200 chai & samosa","amount":200,"category":"Dining & Drinks"}]""")
+        val result = QuickEntryParser.run(provider, "200 chai and samosa with team, 450 auto")
+        assertFalse(result.fromAi)
+        assertEquals(listOf(200.0, 450.0), result.value.map { it.amount })
+    }
+
+    @Test
+    fun amountIsTakenOutOfModelTitles() = runTest {
+        val provider = FakeAiProvider(
+            """[{"title":"200 chai & samosa","amount":200,"category":"Food"},{"title":"Auto ₹450","amount":450,"category":"Transport"}]"""
+        )
+        val result = QuickEntryParser.run(provider, "200 chai and samosa with team, 450 auto")
+        assertTrue(result.fromAi)
+        assertEquals(listOf("Chai & samosa", "Auto"), result.value.map { it.title })
+        // Numbers that aren't the amount stay ("2 coffees").
+        assertEquals("2 coffees", QuickEntryParser.Rules.withoutAmount("2 coffees 300", 300.0))
+    }
 }
