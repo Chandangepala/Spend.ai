@@ -24,7 +24,12 @@ abstract class AiTask<I, O> {
 
     protected abstract fun fallback(input: I): O
 
+    /** False when the rules already cover this input fully; the model isn't called (no wait). */
+    protected open fun needsModel(input: I): Boolean = true
+
     suspend fun run(provider: AiProvider, input: I): AiResult<O> {
+        // replied = true: nothing was left undone, so there's nothing to retry later.
+        if (!needsModel(input)) return AiResult(fallback(input), fromAi = false, replied = true)
         val reply = provider.generate(prompt(input), maxTokens)
         val parsed = reply?.let { runCatching { parse(it, input) }.getOrNull() }
         return if (parsed != null) {
@@ -33,6 +38,12 @@ abstract class AiTask<I, O> {
             AiResult(fallback(input), fromAi = false, replied = reply != null)
         }
     }
+
+    /** For prompt evaluation on a device: the exact prompt, its token budget, and how a raw reply is judged. */
+    internal fun promptFor(input: I): String = prompt(input)
+    internal val replyTokens: Int get() = maxTokens
+    internal fun asksModel(input: I): Boolean = needsModel(input)
+    internal fun judge(reply: String, input: I): O? = runCatching { parse(reply, input) }.getOrNull()
 
     companion object {
         /** The fixed list every prompt offers (as users see it); replies outside it are rejected. */

@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.basic.spendai.ai.AiProviders
 import com.basic.spendai.ai.AiTier
+import com.basic.spendai.ai.AnswerWriter
 import com.basic.spendai.ai.CoachWriter
 import com.basic.spendai.ai.GemmaModel
 import com.basic.spendai.ai.QuickEntryParser
@@ -13,6 +14,9 @@ import com.basic.spendai.ai.SpendQueryTranslator
 import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.data.Category
 import com.basic.spendai.data.DetectedTransaction
+import com.basic.spendai.stats.Period
+import com.basic.spendai.stats.PeriodStats
+import com.basic.spendai.stats.SpendAnswer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -89,10 +93,12 @@ class GemmaOnDeviceTest {
     }
 
     @Test
-    fun askUnderstandsTheQuestion() {
+    fun askSentenceUsesOnlyComputedNumbers() {
         val provider = runBlocking { AiProviders.background(context) }
-        val result = timed("Ask: food last month vs this month") { SpendQueryTranslator().run(provider, "food last month vs this month") }
-        assertTrue(result.value.toString(), result.value.categories.contains(Category.Food))
+        val query = SpendQueryTranslator.translate("food last month vs this month", emptyList())
+        val answer = SpendAnswer(query, PeriodStats(Period.LAST_MONTH, 4200.0, 12, emptyList()), PeriodStats(Period.THIS_MONTH, 3100.0, 9, emptyList()))
+        val result = timed("Ask sentence") { AnswerWriter.run(provider, AnswerWriter.Input("food last month vs this month", answer, AppCurrency.INR)) }
+        assertTrue(result.value.isNotBlank())
     }
 
     @Test

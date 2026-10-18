@@ -4,63 +4,21 @@ import com.basic.spendai.data.Category
 import com.basic.spendai.stats.Metric
 import com.basic.spendai.stats.Period
 import com.basic.spendai.stats.SpendQuery
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
- * Turns "How much did I spend on food delivery last month vs this month?" into a [SpendQuery].
- * The model only picks from fixed options; the numbers are computed later by code.
+ * Turns "How many times did I order from Swiggy last week?" into a [SpendQuery], in code.
+ * Periods, categories and the kind of answer come from keywords. Other words ("swiggy", "pizza")
+ * become shop filters only if they appear in the user's own expense titles, so "trend" or
+ * "wedding" are ignored. Tested on a phone, this beat asking Gemma 1B which words are brands: it
+ * said yes to "trend" and no to "Blinkit". The model still writes the answer sentence.
  */
-class SpendQueryTranslator(private val today: LocalDate = LocalDate.now()) : AiTask<String, SpendQuery>() {
-    override val maxTokens = 128
-
-    @Serializable
-    private data class Reply(
-        val metric: String = "",
-        val categories: List<String> = emptyList(),
-        @SerialName("merchant_contains") val merchantContains: List<String> = emptyList(),
-        val period: String = "",
-        @SerialName("compare_to") val compareTo: String? = null,
-    )
-
-    override fun prompt(input: String) = """
-        |Turn this question about the user's spending into JSON only, no other text:
-        |{"metric": "<total, count, average or top_merchants>", "categories": [<any of: $CATEGORY_NAMES>], "merchant_contains": ["<shop name word>"], "period": "<one of: $PERIODS>", "compare_to": "<a period or null>"}
-        |Use [] when no category or shop is named. Use compare_to only when the question compares two periods.
-        |Today is ${today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.ENGLISH))}.
-        """.trimMargin() + "\nQuestion: " + input.take(MAX_QUESTION_CHARS)
-
-    override fun parse(reply: String, input: String): SpendQuery? {
-        val decoded = AiJson.decode<Reply>(reply) ?: return null
-        val metric = Metric.entries.firstOrNull { it.name.equals(decoded.metric.trim(), ignoreCase = true) } ?: return null
-        val period = periodOrNull(decoded.period) ?: return null
-        val compareTo = decoded.compareTo?.takeUnless { it.isBlank() || it.equals("null", ignoreCase = true) }
-            ?.let { periodOrNull(it) ?: return null }
-            ?.takeIf { it != period }
-        // One unknown category means the model drifted from the list; don't half-trust it.
-        val categories = decoded.categories.map { categoryOrNull(it) ?: return null }.toSet()
-        val merchants = decoded.merchantContains.map { it.trim().lowercase() }
-            .filter { it.length in 2..20 && it.all { c -> c.isLetterOrDigit() || c == ' ' } }
-            .take(MAX_MERCHANTS)
-        return SpendQuery(metric, categories, merchants, period, compareTo)
-    }
-
-    override fun fallback(input: String) = Rules.translate(input)
-
-    private fun periodOrNull(name: String) =
-        Period.entries.firstOrNull { it.name.equals(name.trim().replace(' ', '_'), ignoreCase = true) }
-
-    companion object {
-        private val PERIODS = Period.entries.joinToString(", ") { it.name.lowercase() }
-        private const val MAX_QUESTION_CHARS = 300
-        private const val MAX_MERCHANTS = 5
-    }
+object SpendQueryTranslator {
+    /** [titles]: the user's expense titles, the vocabulary of shops they actually buy from. */
+    fun translate(question: String, titles: List<String>): SpendQuery = Rules.translate(question, Rules.titleWords(titles))
 
     /** The no-AI path: keyword matching for periods, categories and the kind of answer wanted. */
     object Rules {
+        private const val MAX_MERCHANTS = 5
         private val o = setOf(RegexOption.IGNORE_CASE)
 
         // Longer phrases first so "last 30 days" isn't read as "last month"'s cousin.
@@ -96,7 +54,38 @@ class SpendQueryTranslator(private val today: LocalDate = LocalDate.now()) : AiT
         private val averageWords = Regex("""\b(average|avg|typical)\b""", o)
         private val topWords = Regex("""\b(top|most|biggest|where\s+did|which\s+(shop|shops|merchant|merchants|place|places))\b""", o)
 
-        fun translate(question: String): SpendQuery {
+        private val wordRegex = Regex("""[\p{L}\p{N}]+""")
+        private val commonWords = setOf(
+            "how", "much", "many", "did", "do", "does", "i", "me", "my", "we", "our", "you", "spend", "spent", "spending",
+            "money", "pay", "paid", "payment", "payments", "on", "at", "in", "from", "to", "for", "of", "the", "a", "an",
+            "and", "or", "vs", "versus", "than", "compared", "compare", "with", "by", "what", "whats", "which", "where",
+            "when", "is", "was", "were", "are", "be", "total", "amount", "cost", "costs", "bill", "bills", "expense",
+            "expenses", "order", "orders", "ordered", "buy", "bought", "purchase", "purchases", "time", "per", "more",
+            "less", "show", "tell", "give", "get", "all", "rs", "inr", "rupees", "so", "far", "last", "this",
+            "week", "month", "year", "day", "days", "past", "previous", "am", "doing", "it", "that", "there", "any",
+            "mine", "us", "up", "out", "about", "only", "just", "still", "again", "every", "each", "please",
+            "trend", "trends", "breakdown", "summary", "overview", "budget", "budgets", "spends", "can", "could", "would",
+        )
+
+        /** Words left after periods, categories and question words are taken out: candidate shop names. */
+        fun unknownWords(question: String): List<String> {
+            var rest = question
+            val known = periodPhrases.map { it.second } + categoryWords.values + listOf(delivery, countWords, averageWords, topWords)
+            known.forEach { rest = it.replace(rest, " ") }
+            return wordRegex.findAll(rest.lowercase()).map { it.value }
+                .filter { it.length >= 2 && it.any(Char::isLetter) && it !in commonWords }
+                .distinct()
+                .toList()
+        }
+
+        /** Periods a text talks about ("last week's" -> LAST_WEEK), e.g. to check a model's sentence. */
+        fun periodsIn(text: String): Set<Period> = periodPhrases.filter { (_, regex) -> regex.containsMatchIn(text) }.map { it.first }.toSet()
+
+        /** Lowercase words of expense titles ("Paytm*swiggy8291" -> paytm, swiggy8291). */
+        fun titleWords(titles: List<String>): Set<String> =
+            titles.flatMap { wordRegex.findAll(it.lowercase()).map { m -> m.value }.toList() }.filter { it.length >= 2 }.toSet()
+
+        fun translate(question: String, titleWords: Set<String> = emptySet()): SpendQuery {
             // Periods in the order they're mentioned: "last month vs this month".
             val periods = periodPhrases
                 .flatMap { (period, regex) -> regex.findAll(question).map { it.range.first to period } }
@@ -107,7 +96,10 @@ class SpendQueryTranslator(private val today: LocalDate = LocalDate.now()) : AiT
             val isDelivery = delivery.containsMatchIn(question)
             // "food delivery" means Swiggy/Zomato orders, not groceries.
             val categories = if (isDelivery) found - Category.Groceries else found
-            val merchants = if (Category.Food in categories && isDelivery) listOf("swiggy", "zomato") else emptyList()
+            val delivered = if (Category.Food in categories && isDelivery) listOf("swiggy", "zomato") else emptyList()
+            // Leftover words the user's own expenses are named with: "uber" matches "Uber", "swiggy" matches "swiggy8291".
+            val named = unknownWords(question).filter { w -> titleWords.any { it == w || (w.length >= 4 && it.startsWith(w)) } }
+            val merchants = (delivered + named).distinct().take(MAX_MERCHANTS)
             val metric = when {
                 countWords.containsMatchIn(question) -> Metric.COUNT
                 averageWords.containsMatchIn(question) -> Metric.AVERAGE
