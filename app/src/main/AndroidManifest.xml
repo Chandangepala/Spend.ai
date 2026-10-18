@@ -33,6 +33,11 @@
         android:resizeableActivity="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.Spendai">
+        <!-- Lets Gemma (LiteRT-LM) use the GPU where the vendor OpenCL library exists; CPU otherwise. -->
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+        <uses-native-library android:name="libOpenCL-pixel.so" android:required="false" />
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+
         <activity
             android:name=".MainActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|density"

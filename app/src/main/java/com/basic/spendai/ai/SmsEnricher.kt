@@ -78,6 +78,10 @@ class SmsEnricher(
 
         override fun parse(reply: String, input: Input): Output? {
             val decoded = AiJson.decode<Reply>(reply) ?: return null
+            // A name that isn't in the SMS (or the user's own choices) means the model copied the
+            // prompt's example ("Swiggy") instead of reading the message; distrust the whole reply.
+            val named = validMerchant(decoded.merchant)
+            if (named != null && !groundedIn(named, input)) return null
             return Output(
                 isTransaction = decoded.isTransaction,
                 merchant = validMerchant(decoded.merchant) ?: input.rulesMerchant,
@@ -87,6 +91,15 @@ class SmsEnricher(
         }
 
         override fun fallback(input: Input) = Output(true, input.rulesMerchant, input.rulesCategory)
+
+        /** "Swiggy" is in "…paytm-swiggy8291@ptys…": compared as letters only, ignoring case. */
+        internal fun groundedIn(merchant: String, input: Input): Boolean {
+            val key = letters(merchant)
+            if (key.isEmpty()) return false
+            return letters(input.body).contains(key) || input.examples.any { (chosen, _) -> letters(chosen) == key }
+        }
+
+        private fun letters(text: String) = text.lowercase().filter(Char::isLetter)
 
         private fun validMerchant(name: String): String? {
             val trimmed = name.trim().trim('"', '.')

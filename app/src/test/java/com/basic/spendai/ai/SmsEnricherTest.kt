@@ -117,4 +117,23 @@ class SmsEnricherTest {
         chosen = chosen,
         source = CorrectionSource.RULES,
     )
+
+    @Test
+    fun merchantNotInTheSmsMeansTheModelCopiedTheExample() = runTest {
+        // What Gemma 1B did on a Pixel 6a with a promo SMS: it echoed the prompt's "Swiggy" example.
+        val promo = detection(merchant = null).copy(body = "Get flat Rs 150 OFF on your next 3 orders! Use code FEAST150. Min order Rs 499.")
+        val provider = FakeAiProvider("""{"is_transaction": true, "merchant": "Swiggy", "category": "Food"}""")
+        val outcome = enricher(provider).enrich(promo)
+        assertEquals(Outcome.Enriched(null, Category.Other, fromAi = false), outcome)
+    }
+
+    @Test
+    fun merchantMatchesSmsIgnoringCaseAndSymbols() {
+        val input = SmsEnricher.Task.Input("Rs 349 to VPA paytm-swiggy8291@ptys", null, Category.Other)
+        assertTrue(SmsEnricher.Task.groundedIn("Swiggy", input))
+        assertTrue(SmsEnricher.Task.groundedIn("Big Bazaar", input.copy(body = "POS BIGBAZAAR MUMBAI")))
+        assertFalse(SmsEnricher.Task.groundedIn("Zomato", input))
+        // A name the user chose before counts, even if the SMS spells it differently.
+        assertTrue(SmsEnricher.Task.groundedIn("Amazon", input.copy(body = "AMZN Mktp", examples = listOf("Amazon" to Category.Shopping))))
+    }
 }

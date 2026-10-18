@@ -19,6 +19,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.basic.spendai.MainActivity
 import com.basic.spendai.R
+import com.basic.spendai.ai.AiProviders
+import com.basic.spendai.ai.AiTier
 import com.basic.spendai.ai.InsightWriter
 import com.basic.spendai.data.SettingsRepository
 import kotlinx.coroutines.flow.first
@@ -26,16 +28,26 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Weekly, while charging: computes the week's findings (pure code, no model) and, if the user
- * opted in, posts a notification. The friendly summary is written later, when the app is opened.
+ * opted in, posts a notification. With Gemma installed the friendly summary is written here;
+ * otherwise later, when the app is opened (Gemini Nano only runs in the foreground).
  */
 class WeeklyInsightsWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val report = InsightsRepository(applicationContext).ensureCurrent() ?: return Result.success()
+        val insights = InsightsRepository(applicationContext)
+        val report = insights.ensureCurrent() ?: return Result.success()
         val settings = SettingsRepository(applicationContext)
+        val currency = settings.currency.first()
+        // With Gemma installed the summary can be written right here; otherwise it waits for the app.
+        val provider = AiProviders.background(applicationContext)
+        val summary = if (report.count > 0 && provider.tier == AiTier.GEMMA) {
+            insights.writeSummaryIfMissing(provider, currency, saveTemplate = false)
+        } else {
+            null
+        }
         if (report.count > 0 && settings.insightsNotify.first()) {
-            val input = InsightWriter.Input(report, settings.currency.first())
-            notify(applicationContext, "Your week, ${InsightWriter.range(input)}", InsightWriter.template(input))
+            val input = InsightWriter.Input(report, currency)
+            notify(applicationContext, "Your week, ${InsightWriter.range(input)}", summary ?: InsightWriter.template(input))
         }
         return Result.success()
     }

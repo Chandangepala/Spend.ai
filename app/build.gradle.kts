@@ -21,6 +21,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // The Gemma model download (Wi-Fi only), set in gradle.properties. An empty URL hides the
+        // download (the model can still be imported from a file). Downloads must match the SHA-256.
+        fun prop(name: String) = (findProperty(name) as String?).orEmpty()
+        buildConfigField("String", "GEMMA_MODEL_URL", "\"${prop("spendai.gemmaModelUrl")}\"")
+        buildConfigField("String", "GEMMA_MODEL_SHA256", "\"${prop("spendai.gemmaModelSha256")}\"")
+        buildConfigField("long", "GEMMA_MODEL_BYTES", "${prop("spendai.gemmaModelBytes").ifEmpty { "584000000" }}L")
     }
 
     sourceSets {
@@ -42,6 +49,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }
@@ -85,6 +93,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.genai.prompt)
+    // 0.16.1 is the newest release built with Kotlin 2.2 metadata; 0.17+ needs Kotlin 2.4.
+    implementation(libs.litertlm.android)
     implementation(libs.text.recognition)
     implementation(libs.logging.interceptor)
     implementation(libs.material)

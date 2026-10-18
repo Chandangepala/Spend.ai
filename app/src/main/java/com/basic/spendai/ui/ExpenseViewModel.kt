@@ -15,6 +15,8 @@ import com.basic.spendai.ai.SpendQueryTranslator
 import com.basic.spendai.ai.AiStatus
 import com.basic.spendai.ai.AnswerWriter
 import com.basic.spendai.ai.InsightWriter
+import com.basic.spendai.ai.GemmaModel
+import com.basic.spendai.ai.GemmaState
 import com.basic.spendai.ai.CoachWriter
 import com.basic.spendai.budgets.BudgetLevel
 import com.basic.spendai.budgets.BudgetMath
@@ -73,6 +75,8 @@ data class AiUiState(
     /** Share of AI / rules suggestions the user kept unchanged over the last 30 days. */
     val aiAccuracy: AccuracyStats = AccuracyStats(0, 0),
     val rulesAccuracy: AccuracyStats = AccuracyStats(0, 0),
+    /** The optional Gemma model, used when Gemini Nano isn't available. */
+    val gemma: GemmaState = GemmaState.NotInstalled(),
 )
 
 data class ExpenseUiState(
@@ -157,6 +161,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         WeeklyInsightsWorker.schedule(application)
+        GemmaModel.refresh(application)
     }
 
     private val budgetDao = db.budgetDao()
@@ -262,6 +267,29 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
     private val aiStatus = MutableStateFlow<AiStatus>(AiStatus.Unavailable)
     private var aiDownload: Job? = null
+    /** False until Nano's status is known, so Home doesn't flash the Gemma offer on Nano phones. */
+    private val nanoChecked = MutableStateFlow(false)
+
+    init {
+        viewModelScope.launch {
+            aiStatus.value = AiProviders.nano.status()
+            nanoChecked.value = true
+        }
+    }
+
+    /**
+     * Home's one-tap offer of the Gemma model: only on phones without Gemini Nano, when a download
+     * is configured, until it's installed or the user says "Not now" (it stays while downloading).
+     */
+    val showGemmaOffer: StateFlow<Boolean> =
+        combine(settings.aiEnabled, aiStatus, nanoChecked, GemmaModel.state, settings.gemmaOfferDismissed) { enabled, nano, checked, gemma, dismissed ->
+            enabled && checked && nano == AiStatus.Unavailable && GemmaModel.canDownload &&
+                (gemma is GemmaState.Copying || (gemma is GemmaState.NotInstalled && !dismissed))
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun dismissGemmaOffer() {
+        viewModelScope.launch { settings.dismissGemmaOffer() }
+    }
 
     private val accuracySince = System.currentTimeMillis() - ACCURACY_WINDOW_MS
 
@@ -271,13 +299,28 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             aiStatus,
             correctionDao.observeAccuracy(CorrectionSource.AI, accuracySince),
             correctionDao.observeAccuracy(CorrectionSource.RULES, accuracySince),
-        ) { enabled, status, ai, rules -> AiUiState(enabled, status, ai, rules) }
+            GemmaModel.state,
+        ) { enabled, status, ai, rules, gemma -> AiUiState(enabled, status, ai, rules, gemma) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AiUiState())
 
-    /** Re-checks whether Gemini Nano is ready; cheap, so it runs whenever Settings opens. */
+    /** Re-checks whether Gemini Nano and Gemma are ready; cheap, so it runs whenever Settings opens. */
     fun refreshAiStatus() {
+        GemmaModel.refresh(getApplication())
         if (aiDownload?.isActive == true) return
         viewModelScope.launch { aiStatus.value = AiProviders.nano.status() }
+    }
+
+    /** Gemma: download over Wi-Fi (when a download URL is configured). */
+    fun downloadGemma() = GemmaModel.download(getApplication())
+
+    /** Gemma: copy a .litertlm file the user picked. */
+    fun importGemma(uri: Uri) = GemmaModel.import(getApplication(), uri)
+
+    fun cancelGemma() = GemmaModel.cancel(getApplication())
+
+    fun deleteGemma() {
+        AiProviders.gemma(getApplication()).unload()
+        GemmaModel.delete(getApplication())
     }
 
     fun downloadAiModel() {

@@ -71,7 +71,9 @@ import com.basic.spendai.ui.ask.AskScreen
 import com.basic.spendai.ui.home.HomeScreen
 import com.basic.spendai.ui.insights.InsightsScreen
 import com.basic.spendai.ui.motion.LocalChromeVisible
+import com.basic.spendai.ui.settings.GemmaActions
 import com.basic.spendai.ui.settings.SettingsScreen
+import com.basic.spendai.ai.GemmaModel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -279,6 +281,13 @@ private fun SettingsRoute(viewModel: ExpenseViewModel, onBack: () -> Unit) {
         ai = aiState,
         onAiEnabledChange = viewModel::setAiEnabled,
         onDownloadAi = viewModel::downloadAiModel,
+        gemmaActions = GemmaActions(
+            canDownload = GemmaModel.canDownload,
+            onDownload = viewModel::downloadGemma,
+            onImport = viewModel::importGemma,
+            onCancel = viewModel::cancelGemma,
+            onDelete = viewModel::deleteGemma,
+        ),
         insightsNotify = insightsNotify,
         onInsightsNotifyChange = viewModel::setInsightsNotify,
         handleSystemBack = false,

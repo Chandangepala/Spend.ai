@@ -27,6 +27,7 @@ class SmsReceiver : BroadcastReceiver() {
             try {
                 if (SettingsRepository(context).smsImportEnabled.first()) {
                     SmsImportRepository(context).process(messages)
+                    SmsEnrichWorker.enqueueIfUseful(context)
                 }
             } finally {
                 pending.finish()

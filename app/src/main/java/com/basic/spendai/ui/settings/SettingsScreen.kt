@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.basic.spendai.ai.AiStatus
+import com.basic.spendai.ai.GemmaState
 import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.ui.AiUiState
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -64,6 +65,7 @@ fun SettingsScreen(
     ai: AiUiState = AiUiState(),
     onAiEnabledChange: (Boolean) -> Unit = {},
     onDownloadAi: () -> Unit = {},
+    gemmaActions: GemmaActions = GemmaActions(),
     insightsNotify: Boolean = false,
     onInsightsNotifyChange: (Boolean) -> Unit = {},
     /** False inside the app's navigation, which handles system back (with predictive back). */
@@ -108,7 +110,7 @@ fun SettingsScreen(
                 }
             }
             item {
-                AiRow(ai = ai, onEnabledChange = onAiEnabledChange, onDownload = onDownloadAi)
+                AiRow(ai = ai, onEnabledChange = onAiEnabledChange, onDownload = onDownloadAi, gemmaActions = gemmaActions)
             }
             item {
                 SmsImportRow(enabled = smsImportEnabled, onChange = onSmsImportChange)
@@ -138,14 +140,20 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun AiRow(ai: AiUiState, onEnabledChange: (Boolean) -> Unit, onDownload: () -> Unit) {
+private fun AiRow(ai: AiUiState, onEnabledChange: (Boolean) -> Unit, onDownload: () -> Unit, gemmaActions: GemmaActions) {
     val status = ai.status
+    val gemmaReady = ai.gemma is GemmaState.Installed && (ai.gemma as GemmaState.Installed).loadError == null
     val (headline, detail) = when (status) {
         AiStatus.Available -> "Gemini Nano ready" to "Smarter categories and merchant names, processed on device."
         is AiStatus.Downloadable ->
             "Gemini Nano available to download" to (status.error ?: "A one-time download managed by Android. Wi-Fi recommended.")
         is AiStatus.Downloading -> "Downloading Gemini Nano…" to downloadDetail(status)
-        AiStatus.Unavailable -> "Not supported on this device" to "Using smart rules instead. Everything still works."
+        AiStatus.Unavailable ->
+            if (gemmaReady) {
+                "Gemma ready" to "Gemini Nano isn't supported here, so SpendAI uses the Gemma model you installed."
+            } else {
+                "Gemini Nano isn't supported on this phone" to "Using smart rules. Everything still works, or add the Gemma model below."
+            }
     }
 
     ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
@@ -191,6 +199,8 @@ private fun AiRow(ai: AiUiState, onEnabledChange: (Boolean) -> Unit, onDownload:
                     }
                     else -> Unit
                 }
+                // Gemma is the fallback for phones where Nano can't run.
+                if (status == AiStatus.Unavailable) GemmaBlock(ai.gemma, gemmaActions)
             }
             AccuracyLine(ai)
         }

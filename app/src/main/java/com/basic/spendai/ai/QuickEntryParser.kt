@@ -28,8 +28,10 @@ object QuickEntryParser : AiTask<String, List<QuickEntryItem>>() {
         if (items.isEmpty() || items.size > written.size) return null
         // One bad amount means the model wasn't reading the note; distrust the whole reply.
         if (items.any { item -> written.none { it.sameAs(item.amount) } }) return null
+        // Small models sometimes drop a spend ("…, 450 auto" vanishes); the rules would have kept it.
+        if (items.size < Rules.parse(input).size) return null
         return items.map { item ->
-            val title = item.title.trim().take(MAX_TITLE_CHARS).ifBlank { "Expense" }
+            val title = Rules.withoutAmount(item.title, item.amount).take(MAX_TITLE_CHARS).ifBlank { "Expense" }
             QuickEntryItem(title, item.amount, categoryOrNull(item.category) ?: Rules.categoryFor(title))
         }
     }
@@ -76,6 +78,15 @@ object QuickEntryParser : AiTask<String, List<QuickEntryItem>>() {
         }
 
         fun categoryFor(title: String): Category = CategoryGuesser.guessCasual(title)
+
+        /** "200 chai & samosa" -> "Chai & samosa": the amount has its own field. Other numbers stay. */
+        fun withoutAmount(title: String, amount: Double): String {
+            val stripped = numberRegex.replace(normalize(title)) { match ->
+                val n = match.groupValues[1].toDoubleOrNull()
+                if (n != null && kotlin.math.abs(n - amount) < 0.005) " " else match.value
+            }
+            return cleanTitle(stripped).replaceFirstChar(Char::uppercase)
+        }
 
         private fun normalize(text: String) = groupingComma.replace(text, "")
 
