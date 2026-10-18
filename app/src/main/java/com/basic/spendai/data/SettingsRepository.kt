@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -47,6 +48,27 @@ class SettingsRepository(context: Context) {
         dataStore.edit { it[INSIGHTS_NOTIFY_KEY] = enabled }
     }
 
+    /** Daily reminder to add or review the day's spending; off until the user turns it on. */
+    val reminderEnabled: Flow<Boolean> = dataStore.data.map { it[REMINDER_ENABLED_KEY] ?: false }
+
+    /** Reminder time in minutes after midnight; null until the user (or the suggestion) picks one. */
+    val reminderMinutes: Flow<Int?> = dataStore.data.map { it[REMINDER_MINUTES_KEY] }
+
+    suspend fun setReminderEnabled(enabled: Boolean) {
+        dataStore.edit { it[REMINDER_ENABLED_KEY] = enabled }
+    }
+
+    suspend fun setReminderMinutes(minutes: Int) {
+        dataStore.edit { it[REMINDER_MINUTES_KEY] = minutes }
+    }
+
+    /** The day (ISO date) the daily reminder last ran, so it runs at most once a day. */
+    val lastReminderDay: Flow<String?> = dataStore.data.map { it[LAST_REMINDER_DAY_KEY] }
+
+    suspend fun setLastReminderDay(day: String) {
+        dataStore.edit { it[LAST_REMINDER_DAY_KEY] = day }
+    }
+
     /** The user tapped "Not now" on Home's one-time Gemma offer (Settings still has the download). */
     val gemmaOfferDismissed: Flow<Boolean> = dataStore.data.map { it[GEMMA_OFFER_DISMISSED_KEY] ?: false }
 
@@ -65,5 +87,8 @@ class SettingsRepository(context: Context) {
         val AI_ENABLED_KEY = booleanPreferencesKey("ai_enabled")
         val INSIGHTS_NOTIFY_KEY = booleanPreferencesKey("insights_notify")
         val GEMMA_OFFER_DISMISSED_KEY = booleanPreferencesKey("gemma_offer_dismissed")
+        val REMINDER_ENABLED_KEY = booleanPreferencesKey("reminder_enabled")
+        val REMINDER_MINUTES_KEY = intPreferencesKey("reminder_minutes")
+        val LAST_REMINDER_DAY_KEY = stringPreferencesKey("last_reminder_day")
     }
 }

@@ -46,6 +46,7 @@ import com.basic.spendai.ai.AiStatus
 import com.basic.spendai.ai.GemmaState
 import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.ui.AiUiState
+import com.basic.spendai.ui.ReminderUiState
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -68,6 +69,9 @@ fun SettingsScreen(
     gemmaActions: GemmaActions = GemmaActions(),
     insightsNotify: Boolean = false,
     onInsightsNotifyChange: (Boolean) -> Unit = {},
+    reminder: ReminderUiState = ReminderUiState(),
+    onReminderEnabledChange: (Boolean) -> Unit = {},
+    onReminderTimeChange: (Int) -> Unit = {},
     /** False inside the app's navigation, which handles system back (with predictive back). */
     handleSystemBack: Boolean = true,
 ) {
@@ -114,6 +118,19 @@ fun SettingsScreen(
             }
             item {
                 SmsImportRow(enabled = smsImportEnabled, onChange = onSmsImportChange)
+            }
+            item {
+                Column(Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)) {
+                    Text("Reminders", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Stay on track without having to remember. Worked out on this phone.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            item {
+                ReminderRow(reminder = reminder, onEnabledChange = onReminderEnabledChange, onTimeChange = onReminderTimeChange)
             }
             item {
                 InsightsNotifyRow(enabled = insightsNotify, onChange = onInsightsNotifyChange)

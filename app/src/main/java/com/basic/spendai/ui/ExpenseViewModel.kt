@@ -18,6 +18,8 @@ import com.basic.spendai.ai.InsightWriter
 import com.basic.spendai.ai.GemmaModel
 import com.basic.spendai.ai.GemmaState
 import com.basic.spendai.ai.CoachWriter
+import com.basic.spendai.reminders.DailyReminder
+import com.basic.spendai.reminders.ReminderReceiver
 import com.basic.spendai.budgets.BudgetLevel
 import com.basic.spendai.budgets.BudgetMath
 import com.basic.spendai.budgets.BudgetNudges
@@ -95,6 +97,13 @@ data class MonthSummary(
     val expenses: List<Expense> = emptyList(),
     val total: Double = 0.0,
     val lastMonthToDate: Double? = null,
+)
+
+/** [minutes] after midnight; [suggested] is null until there's enough history to suggest a time. */
+data class ReminderUiState(
+    val enabled: Boolean = false,
+    val minutes: Int = DailyReminder.DEFAULT_MINUTES,
+    val suggested: Int? = null,
 )
 
 /** One question and its answer on the Ask screen. */
@@ -260,6 +269,39 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
     fun setInsightsNotify(enabled: Boolean) {
         viewModelScope.launch { settings.setInsightsNotify(enabled) }
+    }
+
+    /** The daily reminder, with a time suggested from when the user's spending usually ends. */
+    val reminder: StateFlow<ReminderUiState> =
+        combine(
+            settings.reminderEnabled,
+            settings.reminderMinutes,
+            dao.observeAll().map { all ->
+                DailyReminder.suggestMinutes(all.map { it.timestamp }, java.time.Instant.now(), java.time.ZoneId.systemDefault())
+            },
+        ) { enabled, minutes, suggested ->
+            ReminderUiState(enabled, minutes ?: suggested ?: DailyReminder.DEFAULT_MINUTES, suggested)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReminderUiState())
+
+    init {
+        // Re-arms the alarm on every launch (a force-stop clears it).
+        viewModelScope.launch { ReminderReceiver.reschedule(application) }
+    }
+
+    fun setReminderEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            // The first time on, keep the time the user was shown (the suggestion, or 9 PM).
+            if (enabled && settings.reminderMinutes.first() == null) settings.setReminderMinutes(reminder.value.minutes)
+            settings.setReminderEnabled(enabled)
+            ReminderReceiver.reschedule(getApplication())
+        }
+    }
+
+    fun setReminderTime(minutes: Int) {
+        viewModelScope.launch {
+            settings.setReminderMinutes(minutes)
+            ReminderReceiver.reschedule(getApplication())
+        }
     }
 
     val hiddenDetections: StateFlow<List<DetectedTransaction>> =

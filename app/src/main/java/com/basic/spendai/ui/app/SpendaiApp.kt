@@ -74,6 +74,7 @@ import com.basic.spendai.ui.motion.LocalChromeVisible
 import com.basic.spendai.ui.settings.GemmaActions
 import com.basic.spendai.ui.settings.SettingsScreen
 import com.basic.spendai.ai.GemmaModel
+import com.basic.spendai.reminders.ReminderTarget
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -96,7 +97,12 @@ enum class Tab(val root: NavKey, val label: String, val icon: ImageVector, val s
  * tab returns Home. Settings opens on top of the current tab with the bar hidden.
  */
 @Composable
-fun SpendaiApp(viewModel: ExpenseViewModel) {
+fun SpendaiApp(
+    viewModel: ExpenseViewModel,
+    /** Set when a tapped reminder opened the app; [onOpened] clears it once handled. */
+    openTarget: ReminderTarget? = null,
+    onOpened: () -> Unit = {},
+) {
     val actions = rememberExpenseActions(viewModel)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
@@ -161,6 +167,23 @@ fun SpendaiApp(viewModel: ExpenseViewModel) {
                 select(Tab.Insights)
             }
         }
+    }
+
+    // A tapped reminder: straight to the review list, or to the add sheet.
+    LaunchedEffect(openTarget) {
+        when (openTarget) {
+            ReminderTarget.REVIEW -> {
+                activitySection = ActivitySection.Review
+                select(Tab.Activity)
+            }
+            ReminderTarget.ADD -> {
+                select(Tab.Home)
+                actions.add()
+            }
+            null -> return@LaunchedEffect
+        }
+        if (current.lastOrNull() == SettingsRoute) current.removeLastOrNull()
+        onOpened()
     }
 
     // Hide the bar while scrolling down a list, bring it back on scroll up (and on any tab change).
@@ -271,6 +294,7 @@ private fun SettingsRoute(viewModel: ExpenseViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val aiState by viewModel.aiState.collectAsStateWithLifecycle()
     val insightsNotify by viewModel.insightsNotify.collectAsStateWithLifecycle()
+    val reminder by viewModel.reminder.collectAsStateWithLifecycle()
     androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.refreshAiStatus() }
     SettingsScreen(
         selectedCurrency = state.currency,
@@ -290,6 +314,9 @@ private fun SettingsRoute(viewModel: ExpenseViewModel, onBack: () -> Unit) {
         ),
         insightsNotify = insightsNotify,
         onInsightsNotifyChange = viewModel::setInsightsNotify,
+        reminder = reminder,
+        onReminderEnabledChange = viewModel::setReminderEnabled,
+        onReminderTimeChange = viewModel::setReminderTime,
         handleSystemBack = false,
     )
 }
