@@ -2,6 +2,7 @@ package com.basic.spendai.ai
 
 import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.stats.Metric
+import com.basic.spendai.stats.Period
 import com.basic.spendai.stats.PeriodStats
 import com.basic.spendai.stats.SpendAnswer
 import com.basic.spendai.util.formatCurrency
@@ -25,7 +26,32 @@ object AnswerWriter : AiTask<AnswerWriter.Input, String>() {
 
     override fun parse(reply: String, input: Input): String? {
         val text = reply.trim().trim('"').takeIf { it.length in 10..MAX_REPLY_CHARS } ?: return null
-        return text.takeIf { NumberCheck.onlyKnownNumbers(it, facts(input) + " " + input.question) }
+        val answer = input.answer
+        // A true number in the wrong frame misleads: "Last week's bill was ₹660" for a 30-day average.
+        val periods = setOfNotNull(answer.primary.period, answer.comparison?.period)
+        // "So far"/"ever" read as all-time in questions but are just wording in a sentence.
+        if (!periods.containsAll(SpendQueryTranslator.Rules.periodsIn(text) - Period.ALL_TIME)) return null
+        if (answer.query.metric == Metric.AVERAGE && !averageWords.containsMatchIn(text)) return null
+        // "four times" must be checked like "4 times"; big number words can't be checked at all.
+        if (bigNumberWords.containsMatchIn(text)) return null
+        return text.takeIf { NumberCheck.onlyKnownNumbers(digitsForWords(it), facts(input) + " " + input.question) }
+    }
+
+    private val averageWords = Regex("""\b(average|avg|on average|per expense)\b""", RegexOption.IGNORE_CASE)
+    private val bigNumberWords = Regex("""\b(hundred|thousand|lakh|lakhs|crore|crores|million|dozen)\b""", RegexOption.IGNORE_CASE)
+    private val smallNumberWords = listOf(
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+        "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
+    )
+    private val numberWordRegex = Regex("""\b(${smallNumberWords.joinToString("|")}|once|twice)\b""", RegexOption.IGNORE_CASE)
+
+    /** "four times" -> "4 times", "twice" -> "2", so the number check sees them. */
+    internal fun digitsForWords(text: String) = numberWordRegex.replace(text) { m ->
+        when (val w = m.value.lowercase()) {
+            "once" -> "1"
+            "twice" -> "2"
+            else -> smallNumberWords.indexOf(w).toString()
+        }
     }
 
     override fun fallback(input: Input) = template(input)
@@ -35,18 +61,22 @@ object AnswerWriter : AiTask<AnswerWriter.Input, String>() {
         val (_, answer, currency) = input
         fun money(v: Double) = formatCurrency(v, currency)
         val scope = answer.query.scope()
-        fun line(s: PeriodStats) = buildString {
-            append("${s.period.label}${scope?.let { " ($it)" }.orEmpty()}: total ${money(s.total)}, ${s.count} expenses")
-            if (s.count > 0) append(", average ${money(s.average)}")
-            if (answer.query.metric == Metric.TOP_MERCHANTS && s.topMerchants.isNotEmpty()) {
-                append("; top: ").append(s.topMerchants.joinToString(", ") { (name, amount) -> "$name ${money(amount)}" })
-            }
+        // Only the numbers that answer this kind of question: given total, count and average every
+        // time, a small model presented the average as the total (both real, so the check passed).
+        fun line(s: PeriodStats) = "${s.period.label}${scope?.let { " ($it)" }.orEmpty()}: " + when (answer.query.metric) {
+            Metric.TOTAL -> "total ${money(s.total)}"
+            Metric.COUNT -> "${s.count} ${if (s.count == 1) "expense" else "expenses"}"
+            Metric.AVERAGE -> if (s.count == 0) "no expenses" else "average ${money(s.average)} per expense, ${s.count} expenses"
+            Metric.TOP_MERCHANTS -> if (s.topMerchants.isEmpty()) "no expenses" else
+                "top: " + s.topMerchants.joinToString(", ") { (name, amount) -> "$name ${money(amount)}" }
         }
         return buildList {
             add(line(answer.primary))
             answer.comparison?.let { c ->
                 add(line(c))
-                change(answer.primary.total, c.total)?.let { add("Change: ${answer.primary.period.label} is $it than ${c.period.label}") }
+                if (answer.query.metric == Metric.TOTAL) {
+                    change(answer.primary.total, c.total)?.let { add("Change: ${answer.primary.period.label} is $it than ${c.period.label}") }
+                }
             }
         }.joinToString("\n")
     }

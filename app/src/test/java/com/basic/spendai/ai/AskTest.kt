@@ -12,11 +12,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.LocalDate
 
 class AskTest {
-
-    private val translator = SpendQueryTranslator(LocalDate.of(2026, 10, 17))
 
     // --- Question -> query, rules ---
 
@@ -44,25 +41,43 @@ class AskTest {
 
     // --- Question -> query, AI ---
 
+    // --- Shop names: leftover words that appear in the user's own expense titles ---
+
+    private val titles = listOf("Swiggy", "Zomato order", "Uber", "Ola", "Rapido", "Paytm*blinkit4412", "Starbucks", "Pizza Hut", "Amazon", "Netflix")
+
+    private fun read(question: String) = SpendQueryTranslator.translate(question, titles)
+
     @Test
-    fun validModelQueryIsUsed() = runTest {
-        val provider = FakeAiProvider(
-            """{"metric":"total","categories":["Food"],"merchant_contains":["Swiggy","Zomato"],"period":"last_month","compare_to":"this_month"}"""
-        )
-        val result = translator.run(provider, "food delivery last month vs this month")
-        assertTrue(result.fromAi)
-        assertEquals(SpendQuery(Metric.TOTAL, setOf(Category.Food), listOf("swiggy", "zomato"), Period.LAST_MONTH, Period.THIS_MONTH), result.value)
-        assertTrue(provider.prompts.single().contains("Today is Saturday, 17 October 2026"))
+    fun shopsTheUserBuysFromBecomeFilters() {
+        assertEquals(SpendQuery(Metric.COUNT, emptySet(), listOf("swiggy"), Period.LAST_WEEK), read("How many times did I order from Swiggy last week?"))
+        assertEquals(listOf("uber"), read("How much on Uber in the past 7 days").merchantContains)
+        assertEquals(listOf("starbucks"), read("how much at starbucks this month").merchantContains)
+        assertEquals(listOf("zomato"), read("zomato orders this year").merchantContains)
+        // Rides are Transport, Rapido is the shop: both apply.
+        assertEquals(SpendQuery(Metric.COUNT, setOf(Category.Transport), listOf("rapido"), Period.LAST_WEEK), read("how many rapido rides last week"))
+        // A title like "Paytm*blinkit4412" still counts as Blinkit.
+        assertEquals(SpendQuery(Metric.COUNT, emptySet(), listOf("blinkit"), Period.THIS_WEEK), read("how many blinkit orders this week"))
+        assertEquals(listOf("uber", "ola"), read("uber vs ola last month").merchantContains)
+        assertEquals(listOf("pizza"), read("how much on pizza this week").merchantContains)
     }
 
     @Test
-    fun unknownPeriodOrCategoryFallsBackToRules() = runTest {
-        val badPeriod = FakeAiProvider("""{"metric":"total","categories":[],"period":"last_quarter","compare_to":null}""")
-        assertFalse(translator.run(badPeriod, "spend last month").fromAi)
-        val badCategory = FakeAiProvider("""{"metric":"total","categories":["Snacks"],"period":"this_month"}""")
-        val result = translator.run(badCategory, "groceries this month")
-        assertFalse(result.fromAi)
-        assertEquals(setOf(Category.Groceries), result.value.categories)
+    fun wordsNotInAnyTitleAreIgnored() {
+        assertEquals(SpendQuery(Metric.TOTAL, emptySet(), emptyList(), Period.THIS_MONTH), read("show my spending trend this month"))
+        assertEquals(emptyList<String>(), read("what did I spend on my sister's wedding this year").merchantContains)
+        // Never bought at Ikea: the whole month is answered, and the card's scope line shows no shop.
+        assertEquals(emptyList<String>(), read("how much did I spend at ikea last month").merchantContains)
+        // Category words stay categories even if a title contains them.
+        assertEquals(SpendQuery(Metric.AVERAGE, setOf(Category.Shopping), emptyList(), Period.THIS_YEAR), read("average amazon purchase this year"))
+    }
+
+    @Test
+    fun theOtherQuestionsReadAsBefore() {
+        assertEquals(SpendQuery(Metric.TOTAL, setOf(Category.Food, Category.Groceries), emptyList(), Period.LAST_MONTH, Period.THIS_MONTH), read("food last month vs this month"))
+        assertEquals(SpendQuery(Metric.TOP_MERCHANTS, emptySet(), emptyList(), Period.THIS_MONTH), read("Where did I spend the most this month?"))
+        assertEquals(SpendQuery(Metric.TOTAL, setOf(Category.Shopping), emptyList(), Period.THIS_WEEK, Period.LAST_WEEK), read("Did I spend more on shopping this week than last week?"))
+        assertEquals(SpendQuery(Metric.TOTAL, setOf(Category.Bills), emptyList(), Period.LAST_MONTH), read("electricity bill last month"))
+        assertEquals(listOf("swiggy"), SpendQueryTranslator.Rules.unknownWords("How many times did I order from Swiggy last week?"))
     }
 
     // --- Numbers -> sentence ---
@@ -108,7 +123,36 @@ class AskTest {
     @Test
     fun factsGiveTheModelOnlyComputedNumbers() {
         val facts = AnswerWriter.facts(input)
-        assertTrue(facts, facts.contains("Last month (Dining & Drinks): total ₹4,200.00, 12 expenses, average ₹350.00"))
-        assertTrue(facts, facts.contains("Change: Last month is 35% more than This month"))
+        assertEquals(
+            "Last month (Dining & Drinks): total ₹4,200.00\nThis month (Dining & Drinks): total ₹3,100.00\nChange: Last month is 35% more than This month",
+            facts,
+        )
+        // Only the numbers this kind of question needs: no average to mistake for the total.
+        val avg = input.copy(answer = answer.copy(query = answer.query.copy(metric = Metric.AVERAGE), comparison = null))
+        assertEquals("Last month (Dining & Drinks): average ₹350.00 per expense, 12 expenses", AnswerWriter.facts(avg))
+    }
+
+    // --- Sentence checks found on a Pixel 6a ---
+
+    private fun sentence(reply: String, answer: SpendAnswer, question: String = "q") =
+        kotlinx.coroutines.runBlocking { AnswerWriter.run(FakeAiProvider(reply), AnswerWriter.Input(question, answer, AppCurrency.INR)) }
+
+    @Test
+    fun sentenceAboutTheWrongPeriodIsRejected() {
+        val avg = SpendAnswer(SpendQuery(Metric.AVERAGE, setOf(Category.Groceries), period = Period.LAST_30_DAYS), PeriodStats(Period.LAST_30_DAYS, 3960.0, 6, emptyList()), null)
+        // What Gemma 1B wrote: a real number, but a week instead of 30 days and a bill instead of an average.
+        assertFalse(sentence("Last week's grocery bill was ₹660.00.", avg).fromAi)
+        assertTrue(sentence("Your average grocery expense over the last 30 days was ₹660.00.", avg).fromAi)
+        // Comparisons may name both of their periods.
+        assertTrue(sentence("Last month's dining total was ₹4200, while this month's was ₹3100.", answer).fromAi)
+    }
+
+    @Test
+    fun numberWordsAreCheckedLikeDigits() {
+        val count = SpendAnswer(SpendQuery(Metric.COUNT, merchantContains = listOf("swiggy"), period = Period.LAST_WEEK), PeriodStats(Period.LAST_WEEK, 1240.0, 4, emptyList()), null)
+        assertTrue(sentence("Last week you ordered from Swiggy four times.", count).fromAi)
+        assertFalse(sentence("Last week you ordered from Swiggy five times.", count).fromAi)
+        assertFalse(sentence("Last week you spent over a thousand rupees on Swiggy.", count).fromAi)
+        assertEquals("ordered 4 times, 2 of them big", AnswerWriter.digitsForWords("ordered four times, twice of them big"))
     }
 }

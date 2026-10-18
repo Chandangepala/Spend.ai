@@ -103,7 +103,7 @@ data class AskEntry(
     val question: String,
     val sentence: String,
     val answer: SpendAnswer,
-    /** The model translated the question or wrote the sentence (numbers always come from code). */
+    /** The model wrote the sentence (the query and numbers always come from code). */
     val fromAi: Boolean,
 )
 
@@ -361,18 +361,19 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
     private val _asking = MutableStateFlow(false)
     val asking: StateFlow<Boolean> = _asking
 
-    /** Question -> query (model or rules) -> numbers (code) -> sentence (model or template). */
+    /** Question -> query (code, using the user's own expense titles) -> numbers (code) -> sentence (model or template). */
     fun ask(question: String) {
         if (_asking.value) return
         _asking.value = true
         viewModelScope.launch {
             try {
                 val provider = AiProviders.best(getApplication())
-                val query = withContext(Dispatchers.Default) { SpendQueryTranslator().run(provider, question) }
-                val answer = SpendQueryExecutor(dao::between).run(query.value)
+                val titles = dao.between(0, System.currentTimeMillis() + DAY_MS).map { it.title }
+                val query = withContext(Dispatchers.Default) { SpendQueryTranslator.translate(question, titles) }
+                val answer = SpendQueryExecutor(dao::between).run(query)
                 val input = AnswerWriter.Input(question, answer, settings.currency.first())
                 val sentence = withContext(Dispatchers.Default) { AnswerWriter.run(provider, input) }
-                val entry = AskEntry(System.nanoTime(), question, sentence.value, answer, query.fromAi || sentence.fromAi)
+                val entry = AskEntry(System.nanoTime(), question, sentence.value, answer, sentence.fromAi)
                 _askHistory.value = listOf(entry) + _askHistory.value
             } finally {
                 _asking.value = false

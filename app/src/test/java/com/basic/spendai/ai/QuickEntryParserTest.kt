@@ -57,69 +57,50 @@ class QuickEntryParserTest {
         assertTrue(Rules.parse("chai with team").isEmpty())
     }
 
-    // --- AI path ---
+    // --- AI path: the model only places items the rules filed as Other ---
 
     @Test
-    fun usesValidatedModelSplit() = runTest {
-        val provider = FakeAiProvider(
-            """[{"title":"Chai and samosa","amount":200,"category":"Food"},{"title":"Auto ride","amount":450,"category":"Transport"}]"""
-        )
-        val result = QuickEntryParser.run(provider, "200 chai and samosa with team, 450 auto")
+    fun modelPlacesOnlyTheUnknownItems() = runTest {
+        // Rules know "movie tickets" (Entertainment) but not "popcorn"; only popcorn goes to the model.
+        val provider = FakeAiProvider(" Dining & Drinks\n")
+        val result = QuickEntryParser.run(provider, "movie tickets 600, popcorn 250")
         assertTrue(result.fromAi)
-        assertEquals(listOf(200.0, 450.0), result.value.map { it.amount })
-        assertEquals("Auto ride", result.value[1].title)
-    }
-
-    @Test
-    fun inventedAmountRejectsTheWholeReply() = runTest {
-        // 650 is a total the model computed; the user never wrote it.
-        val provider = FakeAiProvider("""[{"title":"Chai and auto","amount":650,"category":"Food"}]""")
-        val result = QuickEntryParser.run(provider, "200 chai, 450 auto")
-        assertFalse(result.fromAi)
-        assertEquals(listOf(200.0, 450.0), result.value.map { it.amount })
-    }
-
-    @Test
-    fun offListCategoryUsesRulesForThatItem() = runTest {
-        val provider = FakeAiProvider("""[{"title":"Auto","amount":450,"category":"Commute"}]""")
-        val result = QuickEntryParser.run(provider, "450 auto")
-        assertTrue(result.fromAi)
-        assertEquals(Category.Transport, result.value.single().category)
-    }
-
-    @Test
-    fun brokenOutputFallsBackToRules() = runTest {
-        val result = QuickEntryParser.run(FakeAiProvider("Here are your expenses: chai and auto"), "200 chai, 450 auto")
-        assertFalse(result.fromAi)
-        assertEquals(2, result.value.size)
-    }
-
-    @Test
-    fun moreItemsThanWrittenAmountsIsRejected() = runTest {
-        val provider = FakeAiProvider(
-            """[{"title":"Chai","amount":200,"category":"Food"},{"title":"Samosa","amount":200,"category":"Food"}]"""
+        assertEquals(
+            listOf(QuickEntryItem("Movie tickets", 600.0, Category.Entertainment), QuickEntryItem("Popcorn", 250.0, Category.Food)),
+            result.value,
         )
-        assertFalse(QuickEntryParser.run(provider, "200 chai and samosa").fromAi)
+        assertTrue(provider.prompts.single().endsWith("Expenses: Popcorn\nPopcorn ->"))
     }
 
     @Test
-    fun droppedItemFallsBackToRules() = runTest {
-        // What Gemma 1B returned on a Pixel 6a: the auto ride vanished.
-        val provider = FakeAiProvider("""[{"title":"200 chai & samosa","amount":200,"category":"Dining & Drinks"}]""")
+    fun notesTheRulesFullyUnderstandNeverReachTheModel() = runTest {
+        val provider = FakeAiProvider("Shopping")
         val result = QuickEntryParser.run(provider, "200 chai and samosa with team, 450 auto")
         assertFalse(result.fromAi)
+        assertTrue(provider.prompts.isEmpty())
         assertEquals(listOf(200.0, 450.0), result.value.map { it.amount })
     }
 
     @Test
-    fun amountIsTakenOutOfModelTitles() = runTest {
-        val provider = FakeAiProvider(
-            """[{"title":"200 chai & samosa","amount":200,"category":"Food"},{"title":"Auto ₹450","amount":450,"category":"Transport"}]"""
-        )
-        val result = QuickEntryParser.run(provider, "200 chai and samosa with team, 450 auto")
-        assertTrue(result.fromAi)
-        assertEquals(listOf("Chai & samosa", "Auto"), result.value.map { it.title })
-        // Numbers that aren't the amount stay ("2 coffees").
-        assertEquals("2 coffees", QuickEntryParser.Rules.withoutAmount("2 coffees 300", 300.0))
+    fun wrongCountOffListOrNoHelpKeepsTheRules() = runTest {
+        val note = "movie tickets 600, popcorn 250"
+        val rules = Rules.parse(note)
+        // Extra lines after the answer are ignored; only the unknown item's line counts.
+        assertEquals(Category.Food, QuickEntryParser.run(FakeAiProvider(" Dining & Drinks\nChips -> Groceries"), note).value[1].category)
+        // A label that isn't a category (or the whole list echoed back).
+        assertEquals(rules, QuickEntryParser.run(FakeAiProvider(" Snacks"), note).value)
+        assertFalse(QuickEntryParser.run(FakeAiProvider(" Dining & Drinks, Groceries, Transport, Shopping"), note).fromAi)
+        // "Other" adds nothing, so it isn't shown as an AI result.
+        assertFalse(QuickEntryParser.run(FakeAiProvider(" Other"), note).fromAi)
+        assertFalse(QuickEntryParser.run(FakeAiProvider(""), note).fromAi)
+    }
+
+    @Test
+    fun amountsAndItemsAlwaysComeFromTheRules() = runTest {
+        // Whatever the model says, it can't drop "450 auto" or change an amount any more.
+        val note = "200 chai and samosa with team, 450 auto, 99 popcorn"
+        val result = QuickEntryParser.run(FakeAiProvider(" Dining & Drinks"), note)
+        assertEquals(listOf(200.0, 450.0, 99.0), result.value.map { it.amount })
+        assertEquals(Category.Food, result.value[2].category)
     }
 }

@@ -2,45 +2,63 @@ package com.basic.spendai.ai
 
 import com.basic.spendai.data.Category
 import com.basic.spendai.sms.CategoryGuesser
-import kotlinx.serialization.Serializable
 
 data class QuickEntryItem(val title: String, val amount: Double, val category: Category)
 
 /**
  * Turns a note like "200 chai and samosa with team, 450 auto" into expenses to confirm.
- * The model only splits and labels; every amount it returns must be a number the user wrote.
+ * The rules split the note and read every amount (exact, and what users wrote). The model only
+ * picks categories for items the rules couldn't place ("popcorn" -> Dining), so it can improve
+ * the result but never lose an item or change an amount. Notes the rules fully understand never
+ * reach the model.
  */
 object QuickEntryParser : AiTask<String, List<QuickEntryItem>>() {
-    override val maxTokens = 256
+    override val maxTokens = 48
 
-    @Serializable
-    private data class Reply(val title: String = "", val amount: Double = 0.0, val category: String = "")
+    override fun needsModel(input: String) = unsure(Rules.parse(input)).isNotEmpty()
 
-    override fun prompt(input: String) = """
-        |Split this spending note into separate expenses. Reply with JSON only, no other text:
-        |[{"title": "<short title>", "amount": <number>, "category": "<one of: $CATEGORY_NAMES>"}]
-        |Use only amounts written in the note. Never add, multiply or invent amounts.
-        """.trimMargin() + "\nNote: " + input.take(MAX_INPUT_CHARS)
+    // A small model copies what it's shown, so the prompt is worked examples it only has to continue:
+    // it ends on "<first item> ->", leaving just a category name to write.
+    override fun prompt(input: String): String {
+        val items = Rules.parse(input)
+        val titles = unsure(items).map { items[it].title }
+        return """
+            |Choose the best category for each expense. Categories: $CATEGORY_NAMES.
+            |
+            |Expenses: Popcorn; Zepto order
+            |Popcorn -> Dining & Drinks
+            |Zepto order -> Groceries
+            |
+            |Expenses: Gift for mom
+            |Gift for mom -> Gifts & Family
+            |
+            |Expenses: Plumber; Haircut; Bus pass
+            |Plumber -> Home & Rent
+            |Haircut -> Personal Care
+            |Bus pass -> Transport
+            |
+            |Expenses: ${titles.joinToString("; ")}
+            |${titles.first()} ->
+            """.trimMargin()
+    }
 
     override fun parse(reply: String, input: String): List<QuickEntryItem>? {
-        val items = AiJson.decode<List<Reply>>(reply) ?: return null
-        val written = Rules.amountsIn(input)
-        if (items.isEmpty() || items.size > written.size) return null
-        // One bad amount means the model wasn't reading the note; distrust the whole reply.
-        if (items.any { item -> written.none { it.sameAs(item.amount) } }) return null
-        // Small models sometimes drop a spend ("…, 450 auto" vanishes); the rules would have kept it.
-        if (items.size < Rules.parse(input).size) return null
-        return items.map { item ->
-            val title = Rules.withoutAmount(item.title, item.amount).take(MAX_TITLE_CHARS).ifBlank { "Expense" }
-            QuickEntryItem(title, item.amount, categoryOrNull(item.category) ?: Rules.categoryFor(title))
-        }
+        val items = Rules.parse(input)
+        val unsure = unsure(items)
+        // Line by line, in order; one label off the list means the model wasn't following.
+        val picked = AiLines.answers(reply, items[unsure.first()].title, unsure.size)
+            ?.map { categoryOrNull(it) ?: return null } ?: return null
+        val result = items.toMutableList()
+        unsure.zip(picked).forEach { (i, category) -> result[i] = result[i].copy(category = category) }
+        // Nothing placed (all "Other") means the model added nothing: show it as the rules' result.
+        return result.takeIf { it != items }
     }
 
     override fun fallback(input: String) = Rules.parse(input)
 
-    private fun Double.sameAs(other: Double) = kotlin.math.abs(this - other) < 0.005
+    /** Indexes of the items the keyword rules couldn't place. */
+    private fun unsure(items: List<QuickEntryItem>) = items.indices.filter { items[it].category == Category.Other }
 
-    private const val MAX_INPUT_CHARS = 400
     private const val MAX_TITLE_CHARS = 40
 
     /** The no-AI path: split on commas / "and", pair each number with the words around it. */
@@ -78,15 +96,6 @@ object QuickEntryParser : AiTask<String, List<QuickEntryItem>>() {
         }
 
         fun categoryFor(title: String): Category = CategoryGuesser.guessCasual(title)
-
-        /** "200 chai & samosa" -> "Chai & samosa": the amount has its own field. Other numbers stay. */
-        fun withoutAmount(title: String, amount: Double): String {
-            val stripped = numberRegex.replace(normalize(title)) { match ->
-                val n = match.groupValues[1].toDoubleOrNull()
-                if (n != null && kotlin.math.abs(n - amount) < 0.005) " " else match.value
-            }
-            return cleanTitle(stripped).replaceFirstChar(Char::uppercase)
-        }
 
         private fun normalize(text: String) = groupingComma.replace(text, "")
 
