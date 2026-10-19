@@ -67,8 +67,6 @@ object CategoryGuesser {
 
     // Words people type in quick notes ("450 auto", "samosa") but that would misfire on bank SMS
     // ("auto-debit"), so they're only used for typed or spoken entries.
-    // Words people type in quick notes ("450 auto", "samosa") but that would misfire on bank SMS
-    // ("auto-debit"), so they're only used for typed or spoken entries.
     private val casualKeywords: List<Pair<Category, List<String>>> = listOf(
         Category.Food to listOf(
             "samosa", "lunch", "dinner", "breakfast", "snacks", "snack", "tea", "juice", "biryani", "thali",
@@ -90,7 +88,13 @@ object CategoryGuesser {
         category to Regex(words.joinToString("|", "\\b(", ")\\b") { Regex.escape(it) }, RegexOption.IGNORE_CASE)
     }
 
-    /** For typed or spoken notes: casual words first, then the regular merchant keywords. */
+    /** The built-in model, asked only when no keyword matched. Tests swap it; returning null means rules only. */
+    internal var model: () -> CategoryModel? = { CategoryModel.bundled }
+
+    /** How sure the model must be to be used; below it, the rules' answer (often "Other") stands. */
+    internal const val MODEL_MIN_CONFIDENCE = 0.6f
+
+    /** For typed or spoken notes: casual words first, then the regular merchant keywords, then the model. */
     fun guessCasual(text: String): Category =
         casualRules.firstOrNull { (_, regex) -> regex.containsMatchIn(text) }?.first ?: guess(text, "")
 
@@ -101,8 +105,20 @@ object CategoryGuesser {
     fun guess(merchant: String?, body: String, learned: Category? = null): Category {
         if (learned != null) return learned
         merchant?.let { name -> match(name)?.let { return it } }
-        return match(body) ?: Category.Other
+        match(body)?.let { return it }
+        // A merchant or title no keyword knows ("Mg Grocery Store", "popcorn"): ask the model.
+        val text = merchant ?: body.takeIf { it.length <= MAX_MODEL_TEXT } ?: return Category.Other
+        return modelGuess(text) ?: Category.Other
     }
+
+    /** The model's category when it's confident and has an opinion; null otherwise. */
+    private fun modelGuess(text: String): Category? =
+        model()?.predict(text)
+            ?.takeIf { it.confidence >= MODEL_MIN_CONFIDENCE && it.category != Category.Other }
+            ?.category
+
+    /** Whole SMS bodies are for the keywords; the model was trained on short names and phrases. */
+    private const val MAX_MODEL_TEXT = 60
 
     private fun match(text: String): Category? = rules.firstOrNull { (_, regex) -> regex.containsMatchIn(text) }?.first
 }

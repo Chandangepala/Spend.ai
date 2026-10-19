@@ -8,6 +8,7 @@ import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,6 +43,8 @@ fun CategoryChips(
 ) {
     val top = order.filter { it != Category.Other }.take(VISIBLE_CATEGORIES)
     var expanded by rememberSaveable { mutableStateOf(selected !in top) }
+    // A category picked for the user (from the title) may be one of the hidden ones: show it.
+    LaunchedEffect(selected) { if (selected !in top) expanded = true }
     val shown = if (expanded) order else top
     val hidden = order.size - top.size
 

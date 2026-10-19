@@ -49,6 +49,7 @@ import com.basic.spendai.insights.WeeklyInsightsWorker
 import com.basic.spendai.receipt.ReceiptPhotos
 import com.basic.spendai.receipt.ReceiptScanner
 import com.basic.spendai.sms.CategoryGuesser
+import com.basic.spendai.sms.CategoryModel
 import com.basic.spendai.sms.SmsImportRepository
 import com.basic.spendai.sms.SmsInboxScanner
 import com.basic.spendai.sms.SmsParser
@@ -171,6 +172,8 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
     init {
         WeeklyInsightsWorker.schedule(application)
         GemmaModel.refresh(application)
+        // Reads the built-in category model off the main thread, before the first guess needs it.
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) { CategoryModel.bundled }
     }
 
     private val budgetDao = db.budgetDao()

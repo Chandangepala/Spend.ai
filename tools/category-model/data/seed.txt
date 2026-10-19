@@ -1,0 +1,195 @@
+# Training phrases for the on-device category model.
+# Format: [Category] (the enum name in data/Category.kt), then comma-separated phrases.
+# Kept separate from data/eval.txt: nothing here may appear there.
+
+[Food]
+swiggy, zomato, uber eats, eatsure, box8, faasos, behrouz biryani, rebel foods, dominos, domino's pizza,
+pizza hut, mcdonalds, kfc, burger king, subway, starbucks, cafe coffee day, ccd, third wave coffee,
+blue tokai, chaayos, chai point, haldiram, haldirams, bikanervala, barbeque nation, mainland china,
+wow momo, theobroma, keventers, baskin robbins, naturals ice cream, amul parlour, saravana bhavan,
+a2b adyar ananda bhavan, mtr, paradise biryani, meghana foods, empire restaurant, truffles,
+social, toit, hard rock cafe, irani cafe, udupi hotel, dhaba, punjabi dhaba, food court, canteen,
+office canteen, mess, tiffin, dabba, lunch, dinner, breakfast, brunch, snacks, evening snacks,
+chai, tea, coffee, cold coffee, juice, sugarcane juice, lassi, milkshake, smoothie, biryani,
+chicken biryani, thali, veg thali, dosa, masala dosa, idli, vada, vada pav, pav bhaji, samosa,
+kachori, momos, maggi, noodles, fried rice, rolls, kathi roll, shawarma, sandwich, burger, pizza,
+pasta, paratha, chole bhature, pani puri, golgappe, bhel puri, chaat, pakora, jalebi, sweets,
+mithai, ice cream, kulfi, falooda, cake slice, pastry, donut, waffle, beer, wine, drinks, cocktails,
+pub, bar, brewery, restaurant, cafe, bistro, eatery, takeaway, food delivery, dine out, team lunch,
+office party, birthday dinner, street food, bakery, cookies, croissant, popcorn, nachos, fries,
+kebab, tandoori chicken, butter chicken, fish fry, seafood, sushi, ramen, tacos, coconut water,
+soft drink, coke, pepsi, red bull, energy drink, chips and drink, zepto cafe, swiggy dineout,
+zomato order, swiggy order, food order, dinner with friends, lunch with team, coffee with client,
+snacks for office, dinner date, movie snacks, tea and biscuits, chai sutta bar, tapri
+
+[Groceries]
+blinkit, zepto, bigbasket, big basket, instamart, swiggy instamart, jiomart, dmart, d mart,
+reliance fresh, reliance smart, more supermarket, more retail, spencers, star bazaar, natures basket,
+nature's basket, ratnadeep, heritage fresh, vijetha, nilgiris, foodhall, licious, freshtohome,
+country delight, milkbasket, otipy, dunzo daily, kirana, kirana store, provision store, general store,
+grocery, groceries, supermarket, hypermarket, vegetables, veggies, sabzi, fruits, fruit vendor,
+milk, curd, paneer, butter, ghee, eggs, bread, atta, rice, dal, sugar, salt, oil, cooking oil,
+masala, spices, tea leaves, coffee powder, onions, potatoes, tomatoes, chicken, mutton, fish market,
+meat shop, dairy, dairy booth, nandini milk, amul milk, mother dairy, aavin, flour, pulses,
+biscuits pack, cereal, oats, cornflakes, detergent, soap, shampoo bottle, toothpaste, dishwash,
+surf excel, vim bar, toilet cleaner, tissue rolls, monthly groceries, weekly groceries,
+ration, ration shop, household items, fruits and vegetables, milk and bread, eggs and bread,
+vegetable market, mandi, organic store, dry fruits, almonds, cashews
+
+[Transport]
+uber, ola, rapido, namma yatri, blusmart, meru, indrive, quick ride, auto, auto rickshaw,
+rickshaw, e rickshaw, cab, taxi, cab fare, ride, bike taxi, bus, bus ticket, bus pass, local bus,
+bmtc, best bus, dtc, ksrtc bus pass, metro, metro card, metro recharge, delhi metro, namma metro,
+mumbai metro, local train, suburban train, monthly pass, petrol, diesel, fuel, cng, ev charging,
+petrol pump, hpcl, bpcl, indian oil, iocl, shell, nayara, jio bp, fastag, fastag recharge, toll,
+toll plaza, parking, parking fee, car wash, bike service, car service, tyre puncture, puncture,
+vehicle service, oil change, two wheeler service, yulu, bounce, vogo, zoomcar, revv, drivezy,
+driver, driver salary, valet, ola auto, uber auto, rapido bike, airport cab, cab to office,
+auto to station, bus to college, metro to work, ride home, petrol for bike, fuel for car,
+pollution check, puc, rto fee, challan, traffic fine
+
+[Shopping]
+amazon, amazon india, flipkart, myntra, ajio, meesho, nykaa fashion, tata cliq, snapdeal, shopsy,
+firstcry, lenskart, bewakoof, souled store, h&m, zara, uniqlo, max fashion, pantaloons, westside,
+lifestyle, shoppers stop, central, trends, reliance trends, reliance digital, croma, vijay sales,
+decathlon, ikea, home centre, nike, adidas, puma, bata, woodland, skechers, levis, peter england,
+allen solly, van heusen, fabindia, biba, w for woman, manyavar, tanishq, caratlane, titan,
+fastrack, boat, apple store, samsung store, mi store, oneplus store, clothes, shoes, sneakers,
+slippers, chappals, shirt, t shirt, jeans, trousers, kurta, saree, dress, jacket, hoodie,
+watch, sunglasses, bag, backpack, wallet, belt, jewellery, earrings, phone, mobile phone,
+headphones, earphones, earbuds, charger, phone cover, laptop, keyboard, mouse, power bank,
+smartwatch, tv, television, refrigerator, washing machine, mixer grinder, pressure cooker,
+utensils, bedsheet, curtains, pillow, mattress, home decor, plants, mall, shopping, online order,
+online shopping, gadget, electronics, store purchase, retail, outlet, fashion, accessories
+
+[Bills]
+electricity, electricity bill, power bill, current bill, bescom, tneb, tangedco, msedcl, mseb,
+adani electricity, tata power, bses, bses rajdhani, bses yamuna, cesc, kseb, apspdcl, tsspdcl,
+uppcl, torrent power, water bill, water tax, bwssb, gas bill, piped gas, igl, mgl, indraprastha gas,
+mahanagar gas, gas cylinder, lpg, lpg cylinder, indane, hp gas, bharat gas, mobile recharge,
+prepaid recharge, recharge, jio recharge, airtel recharge, vi recharge, vodafone idea, bsnl,
+postpaid bill, airtel postpaid, jio postpaid, broadband, wifi, wi fi bill, internet bill, act fibernet,
+airtel xstream fiber, jiofiber, hathway, excitel, you broadband, tikona, dth, dth recharge,
+tata play, tata sky, dish tv, d2h, airtel dth, sun direct, landline, phone bill, mobile bill,
+utility bill, bill payment, billpay, municipal tax, property tax, house tax, sewage, cable tv,
+cable bill, data pack, top up, sim recharge, google one, icloud storage, cloud storage
+
+[Home]
+rent, house rent, flat rent, room rent, pg rent, hostel fee, deposit, security deposit,
+maintenance, society maintenance, apartment maintenance, nobroker, nestaway, stanza living, zolo,
+housing, magicbricks, 99acres, urban company, urbanclap, plumber, electrician, carpenter, painter,
+painting, pest control, deep cleaning, house cleaning, cleaning, maid, maid salary, house help,
+cook, cook salary, domestic help, nanny, babysitter, gardener, watchman, security guard,
+furniture, sofa, bed, table, chair, wardrobe, pepperfry, urban ladder, wakefit, sleepwell,
+home repair, repairs, ac repair, ac service, fridge repair, ro service, water purifier service,
+geyser repair, inverter, inverter battery, bulb, tubelight, fan, curtain rod, plumbing,
+tiles, cement, hardware store, paint, broker fee, brokerage, moving, packers and movers,
+locksmith, key duplicate, water can, drinking water cans, bisleri can, laundry bucket
+
+[Entertainment]
+netflix, amazon prime, prime video, hotstar, disney hotstar, jiocinema, jio cinema, zee5, sonyliv,
+sony liv, voot, mx player, aha, sun nxt, hoichoi, apple tv, youtube premium, spotify, gaana,
+jiosaavn, wynk, apple music, audible, kindle unlimited, bookmyshow, paytm insider, district,
+pvr, inox, cinepolis, carnival cinemas, movie, movie tickets, movies, cinema, film, concert,
+concert tickets, live show, standup comedy, comedy show, play, theatre, drama, event tickets,
+music festival, sunburn, lollapalooza, ipl tickets, match tickets, stadium, cricket match,
+amusement park, wonderla, imagica, water park, snow world, bowling, smaaash, timezone,
+gaming zone, arcade, go karting, escape room, paintball, trampoline park, museum, zoo,
+steam, playstation, ps plus, xbox, xbox game pass, nintendo, game, games, gaming, bgmi uc,
+free fire diamonds, valorant points, twitch, patreon, hobby class, karaoke, club entry,
+cover charge, party, night out, outing, picnic, board games
+
+[Health]
+pharmacy, chemist, medical store, medicals, medicine, medicines, tablets, syrup, apollo pharmacy,
+apollo, medplus, netmeds, pharmeasy, tata 1mg, truemeds, wellness forever, frank ross,
+hospital, clinic, doctor, doctor fee, doctor consultation, consultation, specialist, physician,
+dentist, dental clinic, dental, eye clinic, eye checkup, optician, physiotherapy, physio,
+lab test, blood test, diagnostics, diagnostic centre, thyrocare, dr lal pathlabs, metropolis,
+redcliffe, healthians, scan, x ray, mri, ct scan, ultrasound, checkup, health checkup,
+vaccination, vaccine, practo, mfine, tata health, manipal hospital, fortis, max hospital,
+narayana health, aster, cloudnine, rainbow hospital, gym, gym membership, gym fees,
+cult fit, cultfit, cult.fit, gold's gym, anytime fitness, fitness first, crossfit, yoga class,
+yoga, zumba, pilates, swimming pool, swimming fees, badminton court, sports club, protein,
+whey protein, supplements, multivitamin, healthkart, muscleblaze, first aid, bandage,
+thermometer, bp monitor, glucometer, insulin, ayurveda, homeopathy, therapy, counselling,
+therapist, psychiatrist, mental health, drugs, drug store, druggist, chemist and druggist,
+medical hall, medicos, surgicals
+
+[PersonalCare]
+salon, hair salon, haircut, hair cut, hair spa, hair colour, hair color, barber, barber shop,
+shave, beard trim, grooming, parlour, beauty parlour, parlor, spa, massage, body massage,
+facial, cleanup, waxing, threading, manicure, pedicure, nail art, nails, makeup, bridal makeup,
+lakme salon, naturals salon, green trends, toni and guy, jawed habib, enrich salon, looks salon,
+bodycraft, urban company salon, nykaa, purplle, mamaearth, the derma co, minimalist, plum,
+sugar cosmetics, cosmetics, skincare, skin care, face wash, moisturiser, sunscreen, lipstick,
+perfume, deodorant, body lotion, hair oil, shampoo and conditioner, trimmer, razor, shaving cream,
+laundry, laundry service, dry clean, dry cleaning, ironing, press clothes, istri, dhobi,
+tailor, alteration, stitching, cobbler, shoe repair, shoe polish, tattoo, piercing
+
+[Travel]
+irctc, train ticket, train tickets, railway, railways, tatkal, flight, flight ticket, flights,
+air ticket, indigo, air india, vistara, spicejet, akasa air, air asia, go first, makemytrip,
+mmt, goibibo, cleartrip, ixigo, yatra, easemytrip, redbus, abhibus, intrcity, zingbus,
+volvo bus, sleeper bus, booking.com, agoda, expedia, airbnb, oyo, oyo rooms, treebo, fabhotels,
+zostel, hostel stay, hotel, hotel booking, resort, homestay, guest house, lodge, room booking,
+trip, vacation, holiday, holiday package, tour, tour package, travel insurance, visa fee,
+visa, passport fee, forex, airport, airport lounge, lounge, excess baggage, baggage fee,
+trek, trekking, camping, rafting, paragliding, scuba diving, sightseeing, safari,
+goa trip, manali trip, weekend getaway, road trip, travel, taxi for trip, cab to airport,
+outstation cab, savaari, toll for trip
+
+[Education]
+school fees, school fee, college fees, college fee, tuition, tuition fees, coaching,
+coaching classes, exam fee, exam fees, registration fee, admission fee, course, online course,
+course fee, udemy, coursera, edx, upgrad, simplilearn, great learning, unacademy, byjus, byju's,
+vedantu, physics wallah, pw, toppr, khan academy, duolingo, linkedin learning, skillshare,
+masterclass, scaler, coding ninjas, leetcode, books, book, textbook, notebooks, notebook,
+stationery, pens, pencils, art supplies, school bag, uniform, school uniform, school van,
+school bus fee, library, library fee, workshop, seminar, conference ticket, certification,
+exam registration, gre, gmat, ielts, toefl, cat coaching, upsc coaching, kindle, kindle book,
+amazon kindle, ebook, magazine subscription, newspaper, newspaper bill, the hindu, times of india,
+github, github copilot, notion, chatgpt, chatgpt plus, openai, claude, jetbrains, figma,
+canva pro, adobe, microsoft 365, office 365, zoom subscription, slack, software subscription,
+domain name, godaddy, hosting, aws, google cloud, azure, digitalocean, work tools,
+coworking, wework, cowork space
+
+[Finance]
+emi, loan emi, home loan, car loan, personal loan, education loan, loan repayment, loan,
+credit card bill, credit card payment, card bill, cred, cred payment, hdfc credit card,
+icici credit card, sbi card, axis credit card, amex, bajaj finance, bajaj finserv, home credit,
+kreditbee, moneyview, navi, slice, uni card, onecard, insurance, insurance premium, lic,
+lic premium, term insurance, health insurance, car insurance, bike insurance, policybazaar,
+acko, digit insurance, hdfc ergo, icici lombard, star health, max life, tata aia, sip,
+mutual fund, mutual funds, zerodha, groww, upstox, angel one, kuvera, coin, paytm money,
+smallcase, stocks, shares, demat, ppf, nps, fd, fixed deposit, rd, recurring deposit,
+gold savings, digital gold, sovereign gold bond, income tax, advance tax, tds, gst payment,
+ca fee, chartered accountant, bank charges, annual fee, late fee, interest, penalty,
+processing fee, atm withdrawal, cash withdrawal, account maintenance, loan interest,
+chit fund, pigmy, savings deposit, investment
+
+[Gifts]
+gift, gifts, birthday gift, wedding gift, anniversary gift, gift card, gift voucher,
+present, return gift, shagun, wedding shagun, flowers, bouquet, ferns n petals, fnp, igp,
+archies, winni, cake for birthday, donation, charity, temple, temple donation, church,
+mosque, gurudwara, pooja, puja, pooja items, prasad, offering, festival, diwali gifts,
+rakhi, raksha bandhan, holi colours, eid gifts, christmas gifts, sent to mom, sent to dad,
+money to mom, money to dad, money to parents, sent to sister, sent to brother, pocket money,
+family, family expense, kids, kids toys, toys, baby, baby products, diapers, pampers,
+pet, pet food, dog food, cat food, vet, veterinary, pet grooming, pet shop, petsmart,
+heads up for tails, supertails, wedding, marriage, engagement, baby shower, housewarming,
+naming ceremony, condolence, ngo, crowdfunding, ketto, milaap, give india, guruji
+
+[Other]
+upi payment, payment, transfer, money transfer, fund transfer, neft, imps, rtgs, upi,
+paid, sent, received, self transfer, cash, misc, miscellaneous, others, other, expense,
+payment to, paid to, bank transfer, wallet top up, paytm wallet, phonepe wallet, amazon pay balance,
+ramesh, suresh, mahesh, rajesh, ganesh, dinesh, rakesh, mukesh, naresh, umesh, brajesh, sonu,
+monu, pintu, raju, ravi, amit, sumit, rohit, mohit, ankit, vikas, vivek, deepak, sandeep,
+pradeep, kuldeep, manoj, sanjay, vijay, ajay, anil, sunil, kapil, rahul, gaurav, saurabh,
+abhishek, ashish, manish, nitin, sachin, praveen, naveen, kiran, arjun, karan, varun,
+priya, pooja sharma, neha, sneha, anjali, kavita, sunita, anita, meena, seema, rekha, geeta,
+lakshmi, savitri, kamala, radha, sita, shanti, chandan, sonu sharma, ram kumar, shyam lal,
+mohan das, krishna, gopal, hari, ram, sita devi, mr kumar, ms singh, sharma ji, verma,
+gupta, agarwal, patel, reddy, naidu, rao, iyer, nair, menon, pillai, das, ghosh, bose,
+mukherjee, banerjee, chatterjee, singh, kaur, khan, shaikh, ansari, qureshi, joseph, thomas,
+george, mathew, fernandes, dsouza, pinto, john
