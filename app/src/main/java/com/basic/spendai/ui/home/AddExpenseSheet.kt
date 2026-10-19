@@ -44,6 +44,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.basic.spendai.sms.CategoryGuesser
+import androidx.compose.runtime.LaunchedEffect
 import com.basic.spendai.ui.components.ClayButton
 import com.basic.spendai.ui.components.ClayOutlinedButton
 import com.basic.spendai.ui.components.ClayFieldShape
@@ -60,7 +62,10 @@ import com.basic.spendai.util.toPickerDate
 import com.basic.spendai.util.withPickedDate
 import java.math.BigDecimal
 import java.text.DecimalFormat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -87,6 +92,18 @@ fun AddExpenseSheet(
     }
     // New expenses start on the user's most-used category.
     var category by rememberSaveable { mutableStateOf(editing?.category ?: categoryOrder.first()) }
+    // Until the user taps a category, a new expense's category follows its title ("Uber" → Transport).
+    var categoryChosen by rememberSaveable { mutableStateOf(editing != null) }
+    var categoryFromTitle by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(title) {
+        if (categoryChosen) return@LaunchedEffect
+        delay(TITLE_GUESS_DELAY_MS)
+        val guess = if (title.isBlank()) Category.Other else withContext(Dispatchers.Default) { CategoryGuesser.guessCasual(title) }
+        // The user may have tapped a category while this was being worked out; their choice stands.
+        if (categoryChosen) return@LaunchedEffect
+        categoryFromTitle = guess != Category.Other
+        category = if (categoryFromTitle) guess else categoryOrder.first()
+    }
     var timestamp by rememberSaveable { mutableLongStateOf(editing?.timestamp ?: 0L) }
     var pickingDate by remember { mutableStateOf(false) }
     var showErrors by remember { mutableStateOf(false) }
@@ -278,8 +295,24 @@ fun AddExpenseSheet(
                 }
             }
 
-            Text("Category", style = MaterialTheme.typography.titleMedium)
-            CategoryChips(selected = category, onSelect = { category = it }, order = categoryOrder)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Category", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                if (categoryFromTitle && !categoryChosen) {
+                    Text(
+                        "Picked from the title · tap to change",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            CategoryChips(
+                selected = category,
+                onSelect = {
+                    category = it
+                    categoryChosen = true
+                },
+                order = categoryOrder,
+            )
 
             Spacer(Modifier.height(4.dp))
 
@@ -326,3 +359,6 @@ fun AddExpenseSheet(
         }
     }
 }
+
+/** Waits for a pause in typing before guessing the category from the title. */
+private const val TITLE_GUESS_DELAY_MS = 250L

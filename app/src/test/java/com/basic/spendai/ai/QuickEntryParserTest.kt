@@ -61,15 +61,16 @@ class QuickEntryParserTest {
 
     @Test
     fun modelPlacesOnlyTheUnknownItems() = runTest {
-        // Rules know "movie tickets" (Entertainment) but not "popcorn"; only popcorn goes to the model.
-        val provider = FakeAiProvider(" Dining & Drinks\n")
-        val result = QuickEntryParser.run(provider, "movie tickets 600, popcorn 250")
+        // Rules know "movie tickets" (Entertainment); neither they nor the built-in model can place a
+        // payment to a person, so only "Sonu" goes to the AI.
+        val provider = FakeAiProvider(" Gifts & Family\n")
+        val result = QuickEntryParser.run(provider, "movie tickets 600, sonu 250")
         assertTrue(result.fromAi)
         assertEquals(
-            listOf(QuickEntryItem("Movie tickets", 600.0, Category.Entertainment), QuickEntryItem("Popcorn", 250.0, Category.Food)),
+            listOf(QuickEntryItem("Movie tickets", 600.0, Category.Entertainment), QuickEntryItem("Sonu", 250.0, Category.Gifts)),
             result.value,
         )
-        assertTrue(provider.prompts.single().endsWith("Expenses: Popcorn\nPopcorn ->"))
+        assertTrue(provider.prompts.single().endsWith("Expenses: Sonu\nSonu ->"))
     }
 
     @Test

@@ -1,0 +1,91 @@
+# Held-out phrases for scoring only; never used for training. Written separately from seed.txt,
+# mostly with merchants and words that don't appear there, so the score shows how well the model
+# handles spends it hasn't seen. Same format as seed.txt.
+
+[Food]
+pizza express, la pinoz pizza, oven story, burger singh, wendys, taco bell, dunkin donuts,
+krispy kreme, mad over donuts, chaat corner, south indian hotel, biryani blues, behrouz order,
+goila butter chicken, lunchbox, masala chai and bun, filter coffee, idli vada sambar,
+paneer tikka dinner, rolls mania, frozen bottle, cream stone, starbucks coffee mumbai,
+team dinner at restaurant, snacks at canteen
+
+[Groceries]
+bb daily, bigbasket now, fraazo, kpn fresh, more megastore, spar hypermarket, easyday,
+lulu hypermarket, hypercity, sabji mandi, doodh wala, milkman, anda, aata and dal,
+grocery shopping, kirana bill, monthly ration, fresh vegetables, tomato onion, packaged water bottles,
+rice bag 25kg, toor dal, sunflower oil, washing powder
+
+[Transport]
+ola cabs, uber trip, rapido auto, auto fare, share auto, cab ride home, metro smart card,
+petrol bunk, hp petrol pump, essar fuel, bharat petroleum, fuel station, parking charges,
+mall parking, airport parking, car servicing, bike repair, fastag topup, toll charges,
+ksrtc, apsrtc, tsrtc, volvo city bus, monthly bus pass, ev charging station
+
+[Shopping]
+amazon order, flipkart order, myntra order, nykaa order, tata neu, croma store, vijay sales store,
+reliance digital store, poorvika mobiles, sangeetha mobiles, cello pens pack, sneakers from nike,
+new phone case, bluetooth speaker, smart tv, air fryer, dinner set, bedsheets, towels set,
+formal shoes, winter jacket, kurti, handbag, wristwatch
+
+[Bills]
+electricity charges, eb bill, light bill, msedcl bill, bescom bill, water charges, gas connection,
+indane gas refill, hp gas booking, jio fiber bill, airtel broadband bill, act broadband,
+vi postpaid, bsnl landline, prepaid mobile recharge, dth recharge tata play, dish tv recharge,
+internet recharge, phone recharge, municipal water bill, property tax payment, piped gas bill
+
+[Home]
+monthly rent, rent for october, apartment rent, pg fees, hostel rent, society charges,
+maintenance charges, plumber visit, electrician visit, carpenter work, sofa cleaning,
+bathroom cleaning, kitchen cleaning, maid payment, cook payment, house painting, termite control,
+ac gas refill, washing machine repair, ro water purifier, home furniture, study table,
+bookshelf, water tanker
+
+[Entertainment]
+netflix subscription, prime membership, hotstar subscription, spotify premium, youtube music,
+apple tv plus, jiohotstar, movie at pvr, inox tickets, movie night, film tickets, bookmyshow tickets,
+standup show, comedy night, music concert, play tickets, bowling alley, gaming cafe,
+ps5 game, steam games, xbox subscription, amusement park tickets, wonderla tickets, zoo tickets
+
+[Health]
+apollo pharmacy order, medplus pharmacy, 1mg order, pharmeasy order, cough syrup, paracetamol,
+crocin, antibiotics, doctor visit, gp consultation, dentist visit, root canal, braces,
+eye test, spectacles from optician, blood test lab, full body checkup, thyroid test, physiotherapist,
+gym monthly fee, yoga membership, swimming class, protein powder, vitamin d tablets
+
+[PersonalCare]
+haircut and shave, salon visit, beard grooming, spa session, foot massage, head massage,
+facial at parlour, eyebrow threading, hair wash, hair straightening, keratin treatment,
+nail paint, manicure pedicure, lakme cosmetics, face cream, body wash, hair gel, perfume bottle,
+dry cleaning clothes, laundry bill, ironing clothes, tailoring charges, blouse stitching
+
+[Travel]
+irctc ticket, train booking, tatkal ticket, flight to delhi, indigo flight, air india flight,
+bus ticket to bangalore, redbus booking, hotel stay, oyo booking, airbnb stay, resort booking,
+goa hotel, holiday trip, trip to manali, travel booking, visa application, passport renewal,
+forex card, airport food, lounge access, trekking trip, adventure trip, cab for outstation
+
+[Education]
+school tuition fee, college admission, semester fees, exam form fee, coaching fee, jee coaching,
+neet coaching, online classes, udemy course, coursera subscription, byjus subscription,
+textbooks, notebooks and pens, stationery shop, school books, kids school fees, ielts exam,
+library membership, workshop fee, github subscription, chatgpt subscription, figma plan,
+notion plan, domain renewal
+
+[Finance]
+home loan emi, car emi, bike emi, personal loan emi, credit card dues, card payment,
+cred bill payment, lic policy, insurance renewal, health insurance premium, term plan premium,
+mutual fund sip, sip investment, zerodha funds, groww sip, stock purchase, fd booking,
+income tax payment, gst, ca fees, sms charges, annual card fee, emi bajaj, loan installment
+
+[Gifts]
+gift for friend, birthday present, wedding present, flower bouquet, cake for mom,
+donation to temple, temple offering, church offering, charity donation, ngo donation,
+money sent to mom, sent to parents, pocket money for kids, diwali sweets gift, rakhi gift,
+anniversary present, pet food for dog, vet visit, dog grooming, toys for kids, baby diapers,
+housewarming gift, marriage gift, festival shopping for family
+
+[Other]
+upi transfer, imps transfer, neft payment, paid via upi, payment done, sent money,
+transfer to friend, cash given, misc expense, random, ramesh kumar, suresh babu, anand,
+vinod, prakash, harish, ashok, kumar, lakshmi narayan, fatima, ayesha, imran, salim,
+rohan, aditya, pranav
