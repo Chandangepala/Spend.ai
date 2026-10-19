@@ -1,6 +1,5 @@
 package com.basic.spendai.ui.app
 
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -30,6 +29,9 @@ import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.ExpenseViewModel
 import com.basic.spendai.ui.components.DuplicateDialog
 import com.basic.spendai.ui.components.clay
+import com.basic.spendai.ui.components.ClayTokens
+import com.basic.spendai.ui.theme.LocalClayPalette
+import androidx.compose.foundation.shape.CircleShape
 import com.basic.spendai.ui.home.AddExpenseSheet
 import com.basic.spendai.ui.motion.LocalChromeVisible
 import kotlinx.coroutines.CoroutineScope
@@ -149,15 +151,23 @@ fun ExpenseActionsHost(actions: ExpenseActions, viewModel: ExpenseViewModel) {
 /** The clay "Add expense" button used on Home and Activity; shrinks to "+" while the bar is hidden. */
 @Composable
 fun AddExpenseFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val palette = LocalClayPalette.current
     ExtendedFloatingActionButton(
         onClick = onClick,
         expanded = LocalChromeVisible.current,
         icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
         text = { Text("Add expense") },
-        shape = RoundedCornerShape(24.dp),
+        shape = CircleShape,
         containerColor = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
+        contentColor = palette.onEmerald,
         elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
-        modifier = modifier.clay(MaterialTheme.colorScheme.primary, cornerRadius = 24.dp, elevation = 12.dp),
+        // The emerald clay pill: gradient fill, green-tinted drop shadow.
+        modifier = modifier.clay(
+            color = MaterialTheme.colorScheme.primary,
+            cornerRadius = ClayTokens.PillRadius,
+            elevation = ClayTokens.RaisedElevation,
+            shadowColor = palette.heroShadow.copy(alpha = 0.6f),
+            brush = palette.button,
+        ),
     )
 }

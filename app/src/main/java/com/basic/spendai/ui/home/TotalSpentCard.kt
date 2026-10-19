@@ -24,7 +24,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.border
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
+import com.basic.spendai.ui.components.BarSegment
+import com.basic.spendai.ui.components.ClaySegmentBar
+import com.basic.spendai.ui.components.ClayTokens
+import com.basic.spendai.ui.theme.LocalClayPalette
+import java.text.DecimalFormatSymbols
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.basic.spendai.data.Category
@@ -46,73 +60,112 @@ fun TotalSpentCard(
     /** e.g. "₹1,200 less than this time last month"; shown under the count. */
     comparison: String? = null,
 ) {
-    val onCard = MaterialTheme.colorScheme.onPrimary
+    val palette = LocalClayPalette.current
     val shares = remember(expenses) { categoryTotals(expenses) }
+    val moreColor = Color(0xFFB2D6C0).copy(alpha = 0.7f)
 
     ClayCard(
         color = MaterialTheme.colorScheme.primary,
+        brush = palette.hero,
+        contentColor = palette.onEmerald,
+        shadowColor = palette.heroShadow.copy(alpha = 0.55f),
         modifier = modifier.fillMaxWidth(),
-        cornerRadius = 32.dp,
+        cornerRadius = ClayTokens.HeroRadius,
         elevation = 14.dp,
     ) {
+        // A soft shine in the top-left corner, as if lit from there.
+        Box(
+            Modifier
+                .matchParentSize()
+                .drawBehind {
+                    drawCircle(
+                        Brush.radialGradient(
+                            listOf(Color.White.copy(alpha = 0.13f), Color.Transparent),
+                            center = Offset(size.width * 0.08f, 0f),
+                            radius = size.minDimension * 0.7f,
+                        ),
+                        radius = size.minDimension * 0.7f,
+                        center = Offset(size.width * 0.08f, 0f),
+                    )
+                }
+        )
         Column(Modifier.padding(24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(onCard.copy(alpha = 0.18f)),
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White.copy(alpha = 0.15f))
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(10.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Rounded.AccountBalanceWallet, contentDescription = null, tint = onCard)
+                    Icon(Icons.Rounded.AccountBalanceWallet, contentDescription = null, tint = palette.onEmeraldSoft, modifier = Modifier.size(18.dp))
                 }
-                Spacer(Modifier.size(12.dp))
-                Text(label, style = MaterialTheme.typography.titleMedium, color = onCard.copy(alpha = 0.9f))
+                Spacer(Modifier.size(10.dp))
+                Text(label, style = MaterialTheme.typography.titleSmall, color = palette.onEmeraldSoft)
             }
-            Spacer(Modifier.height(16.dp))
-            Text(formatCurrency(animatedAmount(total), LocalCurrency.current), style = MaterialTheme.typography.displaySmall, color = onCard)
+            Spacer(Modifier.height(12.dp))
+            // One Text, so screen readers and tests still see the whole amount; only the decimals look smaller.
+            Text(
+                smallDecimals(
+                    formatCurrency(animatedAmount(total), LocalCurrency.current),
+                    SpanStyle(fontSize = 0.72.em, fontWeight = FontWeight.SemiBold, color = palette.onEmeraldAccent),
+                ),
+                style = MaterialTheme.typography.displaySmall,
+                color = palette.onEmerald,
+            )
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = when (expenses.size) {
                     1 -> "1 transaction"
                     else -> "${expenses.size} transactions"
                 },
                 style = MaterialTheme.typography.bodyMedium,
-                color = onCard.copy(alpha = 0.8f),
+                color = palette.onEmeraldSoft,
             )
             comparison?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = onCard.copy(alpha = 0.8f))
+                Text(it, style = MaterialTheme.typography.bodySmall, color = palette.onEmeraldAccent)
             }
 
             if (shares.isNotEmpty()) {
-                Spacer(Modifier.height(18.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(onCard.copy(alpha = 0.2f)),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    stripSegments(shares).forEach { segment ->
-                        Box(
-                            Modifier
-                                .weight(segment.amount.toFloat())
-                                .height(10.dp)
-                                .background(segment.category?.color ?: onCard.copy(alpha = 0.55f))
-                        )
-                    }
-                }
+                val segments = stripSegments(shares)
+                Spacer(Modifier.height(20.dp))
+                ClaySegmentBar(
+                    segments.map { BarSegment(it.amount.toFloat(), it.category?.color ?: moreColor) },
+                    Modifier.fillMaxWidth(),
+                )
                 if (showLegend) {
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(14.dp))
                     // Wraps: labels like "Dining & Drinks" don't all fit on one line on a phone.
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        stripSegments(shares).forEach { segment ->
-                            LegendDot(segment.label, segment.category?.color ?: onCard.copy(alpha = 0.55f), onCard)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        segments.forEach { segment ->
+                            if (segment.category != null) {
+                                LegendDot(segment.label, segment.category.color, palette.onEmeraldSoft)
+                            } else {
+                                LegendDot("+ ${segment.label}", moreColor, palette.onEmeraldAccent)
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * [amount] with its decimal part ("₹25,778.78" → ".78") drawn in [decimals]; unchanged when the
+ * currency has no minor unit.
+ */
+internal fun smallDecimals(amount: String, decimals: SpanStyle): AnnotatedString {
+    val separator = DecimalFormatSymbols.getInstance().monetaryDecimalSeparator
+    val start = amount.lastIndexOf(separator)
+    if (start < 0) return AnnotatedString(amount)
+    var end = start + 1
+    while (end < amount.length && amount[end].isDigit()) end++
+    if (end == start + 1) return AnnotatedString(amount)
+    return buildAnnotatedString {
+        append(amount)
+        addStyle(decimals, start, end)
     }
 }
 
@@ -134,16 +187,16 @@ private fun LegendDot(label: String, dotColor: Color, textColor: Color) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
-                .size(8.dp)
+                .size(10.dp)
                 .clip(CircleShape)
                 .background(dotColor)
         )
-        Spacer(Modifier.size(4.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = textColor.copy(alpha = 0.9f))
+        Spacer(Modifier.size(6.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium, color = textColor)
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFEAF6EC)
+@Preview(showBackground = true, backgroundColor = 0xFFEBF4ED)
 @Composable
 private fun TotalSpentCardPreview() {
     SpendaiTheme {

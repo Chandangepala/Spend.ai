@@ -25,17 +25,28 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Sms
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material.icons.automirrored.rounded.TrendingUp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
+import com.basic.spendai.ui.components.ClayCircleButton
+import com.basic.spendai.ui.components.ClayPill
+import com.basic.spendai.ui.theme.LocalClayPalette
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -44,7 +55,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -120,26 +130,7 @@ fun HomeScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Spend.ai",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.ExtraBold,
-                    )
-                },
-                actions = {
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Rounded.Settings, contentDescription = "Settings")
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
+        topBar = { HomeHeader(onOpenSettings) },
         floatingActionButton = { AddExpenseFab(onClick = actions::add) },
     ) { innerPadding ->
         Column(Modifier.padding(innerPadding)) {
@@ -150,7 +141,7 @@ fun HomeScreen(
                 onOpenInsights = onOpenInsights,
                 budgetAlerts = budgets.filter { it.level != BudgetLevel.OK },
                 onOpenBudgets = onOpenBudgets,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp),
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp),
             )
             if (showGemmaOffer) {
                 GemmaOfferCard(
@@ -174,6 +165,37 @@ fun HomeScreen(
                 comparison = month.lastMonthToDate?.let { last -> monthComparison(month.total, last, currency) },
             )
         }
+    }
+}
+
+/** The centred "Spend.ai" wordmark (the dot in bright green) with a clay settings button. */
+@Composable
+private fun HomeHeader(onOpenSettings: () -> Unit) {
+    val palette = LocalClayPalette.current
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Text(
+            buildAnnotatedString {
+                append("Spend")
+                withStyle(SpanStyle(color = palette.wordmarkDot)) { append(".") }
+                append("ai")
+            },
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp),
+            color = palette.wordmark,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .semantics { heading() },
+        )
+        ClayCircleButton(
+            Icons.Rounded.Settings,
+            contentDescription = "Settings",
+            onClick = onOpenSettings,
+            modifier = Modifier.align(Alignment.CenterEnd),
+        )
     }
 }
 
@@ -202,29 +224,38 @@ private fun HomeShortcuts(
     onOpenBudgets: () -> Unit = {},
 ) {
     if (toReview == 0 && !hasInsight && budgetAlerts.isEmpty()) return
-    FlowRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         // Budgets near or over their limit come first: they're the ones to act on this month.
         budgetAlerts.forEach { p ->
-            AssistChip(
+            ClayPill(
+                text = if (p.level == BudgetLevel.OVER) "${p.category.label}: over budget" else "${p.category.label}: ${p.percent}% of budget",
                 onClick = onOpenBudgets,
-                label = {
-                    Text(if (p.level == BudgetLevel.OVER) "${p.category.label}: over budget" else "${p.category.label}: ${p.percent}% of budget")
-                },
-                leadingIcon = { Icon(statusIcon(p.level), contentDescription = null, tint = statusColor(p.level)) },
+                leading = { Icon(statusIcon(p.level), contentDescription = null, tint = statusColor(p.level), modifier = Modifier.size(18.dp)) },
             )
         }
         if (toReview > 0) {
-            AssistChip(
+            ClayPill(
+                text = if (toReview == 1) "1 SMS to review" else "$toReview SMS to review",
                 onClick = onReview,
-                label = { Text(if (toReview == 1) "1 SMS to review" else "$toReview SMS to review") },
-                leadingIcon = { Icon(Icons.Rounded.Sms, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                leading = {
+                    // A small emerald badge: this one asks for action.
+                    Box(
+                        Modifier
+                            .size(22.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Rounded.Sms, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(13.dp))
+                    }
+                },
             )
         }
         if (hasInsight) {
-            AssistChip(
+            ClayPill(
+                text = "This week's summary",
                 onClick = onOpenInsights,
-                label = { Text("This week's summary") },
-                leadingIcon = { Icon(Icons.Rounded.Insights, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                leading = { Icon(Icons.AutoMirrored.Rounded.TrendingUp, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) },
             )
         }
     }
