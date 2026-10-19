@@ -25,3 +25,20 @@ val ClayShadowLight = Color(0xFFA5C9AA)
 val ClayHighlightLight = Color(0xFFFFFFFF)
 val ClayShadowDark = Color(0xFF050A06)
 val ClayHighlightDark = Color(0xFF2A3D2D)
+
+// Clay redesign (Stitch "claymorphic" mock): pale mint ground, white clay cards, emerald accents.
+val ClayGround = Color(0xFFEBF4ED)
+val ClayCardTint = Color(0xFFF6FAF7)
+val ClayInk = Color(0xFF173222)
+// The mock's #557A63, a shade darker so it keeps 4.5:1 on the mint ground as well as on white.
+val ClayMuted = Color(0xFF4F735F)
+val Emerald = Color(0xFF1C6B3E)
+val EmeraldDeep = Color(0xFF134D2A)
+val EmeraldDot = Color(0xFF2DB869)
+val Mint200 = Color(0xFFA7F3D0)
+val Mint100 = Color(0xFFD1FAE5)
+val NavGround = Color(0xFFE5F2E8)
+val NavPill = Color(0xFFD5ECDC)
+val NavMuted = Color(0xFF4D755D)
+// Top stop of the hero gradient: the mock's #227A46 a touch darker, so mint text on it keeps 4.5:1.
+val HeroTop = Color(0xFF1F7141)

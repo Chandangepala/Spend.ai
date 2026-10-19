@@ -75,6 +75,9 @@ import com.basic.spendai.ui.settings.GemmaActions
 import com.basic.spendai.ui.settings.SettingsScreen
 import com.basic.spendai.ai.GemmaModel
 import com.basic.spendai.reminders.ReminderTarget
+import com.basic.spendai.ui.theme.LocalClayPalette
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -205,17 +208,22 @@ fun SpendaiApp(
         }
     }
 
-    // Selected tab: a pale-green pill with a dark-green icon (Material's default pill is teal).
+    // Selected tab: a pale-green pill with a dark-green icon and label; the others muted green.
+    val navMuted = LocalClayPalette.current.navMuted
     val itemColors = NavigationSuiteDefaults.itemColors(
         navigationBarItemColors = NavigationBarItemDefaults.colors(
             indicatorColor = MaterialTheme.colorScheme.primaryContainer,
             selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            selectedTextColor = MaterialTheme.colorScheme.primary,
+            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            unselectedIconColor = navMuted,
+            unselectedTextColor = navMuted,
         ),
         navigationRailItemColors = NavigationRailItemDefaults.colors(
             indicatorColor = MaterialTheme.colorScheme.primaryContainer,
             selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            selectedTextColor = MaterialTheme.colorScheme.primary,
+            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            unselectedIconColor = navMuted,
+            unselectedTextColor = navMuted,
         ),
     )
 
@@ -228,11 +236,18 @@ fun SpendaiApp(
                     onClick = { select(t) },
                     icon = {
                         val pending = state.pendingDetections.size
-                        BadgedBox(badge = { if (t == Tab.Activity && pending > 0) Badge { Text("$pending") } }) {
+                        BadgedBox(
+                            badge = {
+                                if (t == Tab.Activity && pending > 0) {
+                                    // A white ring lifts the badge off the icon.
+                                    Badge(Modifier.border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)) { Text("$pending") }
+                                }
+                            },
+                        ) {
                             Icon(if (t == tab) t.selectedIcon else t.icon, contentDescription = null)
                         }
                     },
-                    label = { Text(t.label) },
+                    label = { Text(t.label, style = MaterialTheme.typography.labelMedium) },
                     colors = itemColors,
                 )
             }
@@ -243,6 +258,10 @@ fun SpendaiApp(
             NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(currentWindowAdaptiveInfo())
         },
         containerColor = MaterialTheme.colorScheme.background,
+        navigationSuiteColors = NavigationSuiteDefaults.colors(
+            navigationBarContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            navigationRailContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
     ) {
         Box(
             Modifier

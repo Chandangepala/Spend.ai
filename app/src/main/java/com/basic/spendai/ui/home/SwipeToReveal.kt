@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.basic.spendai.ui.components.ClayTokens
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -107,7 +108,7 @@ fun SwipeToRevealDelete(
                     .align(Alignment.CenterEnd)
                     .width(ActionWidth)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(ClayTokens.CardRadius))
                     .background(MaterialTheme.colorScheme.error)
                     .clickable(onClickLabel = "Delete") {
                         haptics.performHapticFeedback(HapticFeedbackType.Confirm)
