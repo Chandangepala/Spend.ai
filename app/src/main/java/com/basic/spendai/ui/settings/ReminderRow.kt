@@ -60,7 +60,7 @@ internal fun ReminderRow(
     var picking by rememberSaveable { mutableStateOf(false) }
     val time = formatMinutes(context, reminder.minutes)
 
-    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
         Column {
             Row(
                 modifier = Modifier

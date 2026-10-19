@@ -21,14 +21,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +43,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.basic.spendai.ui.components.ClayFieldShape
+import com.basic.spendai.ui.components.ClayOutlinedButton
+import com.basic.spendai.ui.components.ClayPill
+import com.basic.spendai.ui.components.clayField
+import com.basic.spendai.ui.components.clayFieldColors
+import com.basic.spendai.ui.components.AiBadge
 import com.basic.spendai.data.AppCurrency
 import com.basic.spendai.data.Category
 import com.basic.spendai.util.LocalCurrency
@@ -102,18 +105,20 @@ fun QuickEntryInput(
                     }
                 }
             } else null,
-            shape = RoundedCornerShape(20.dp),
+            shape = ClayFieldShape,
+            colors = clayFieldColors(),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank() && !parsing) onSplit() }),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clayField(),
         )
-        FilledTonalButton(onClick = onSplit, enabled = text.isNotBlank() && !parsing) {
+        ClayOutlinedButton(onClick = onSplit, enabled = text.isNotBlank() && !parsing) {
             if (parsing) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.width(8.dp))
-                Text("Reading…")
+                Text("Reading…", style = MaterialTheme.typography.labelLarge)
             } else {
-                Text("Split into expenses")
+                Text("Split into expenses", style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -134,11 +139,7 @@ fun QuickEntryReview(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f),
             )
-            if (fromAi) {
-                Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("On-device AI", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            }
+            if (fromAi) AiBadge(description = "Split by on-device AI", label = "On-device AI")
         }
         rows.forEachIndexed { index, row ->
             QuickRowEditor(row, onChange = { onRowChange(index, it) }, onRemove = { onRemove(index) })
@@ -176,11 +177,12 @@ private fun QuickRowEditor(row: QuickRow, onChange: (QuickRow) -> Unit, onRemove
             }
         }
         Box {
-            AssistChip(
+            ClayPill(
+                text = row.category.label,
                 onClick = { menuOpen = true },
-                label = { Text(row.category.label) },
-                leadingIcon = { Icon(row.category.icon, contentDescription = null, tint = row.category.color) },
-                trailingIcon = { Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Change category") },
+                onClickLabel = "Change category",
+                leading = { Icon(row.category.icon, contentDescription = null, tint = row.category.color, modifier = Modifier.size(18.dp)) },
+                trailing = { Icon(Icons.Rounded.ArrowDropDown, contentDescription = null) },
             )
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 Category.entries.forEach { option ->

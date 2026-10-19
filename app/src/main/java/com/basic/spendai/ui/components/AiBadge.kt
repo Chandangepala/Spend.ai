@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 
 /** Marks a row the on-device model tidied up, so users know where the name and category came from. */
 @Composable
-fun AiBadge(description: String = "Suggested by on-device AI") {
+fun AiBadge(description: String = "Suggested by on-device AI", label: String = "AI") {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
@@ -37,6 +37,6 @@ fun AiBadge(description: String = "Suggested by on-device AI") {
             modifier = Modifier.size(12.dp),
         )
         Spacer(Modifier.size(2.dp))
-        Text("AI", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
     }
 }

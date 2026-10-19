@@ -11,22 +11,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarMonth
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
@@ -42,18 +38,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.basic.spendai.ui.components.ClayButton
+import com.basic.spendai.ui.components.ClayOutlinedButton
+import com.basic.spendai.ui.components.ClayFieldShape
+import com.basic.spendai.ui.components.clayField
+import com.basic.spendai.ui.components.clayFieldColors
 import com.basic.spendai.ai.AiResult
 import com.basic.spendai.ai.QuickEntryItem
 import com.basic.spendai.ai.ReceiptResult
 import com.basic.spendai.data.Category
 import com.basic.spendai.data.Expense
-import com.basic.spendai.ui.components.clay
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatDay
 import com.basic.spendai.util.toPickerDate
@@ -151,26 +151,20 @@ fun AddExpenseSheet(
                     onRowChange = { index, row -> reviewRows[index] = row },
                     onRemove = { index -> reviewRows.removeAt(index) },
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            reviewRows.clear()
-                            receipt = null
-                        },
-                        modifier = Modifier.height(56.dp),
-                    ) { Text("Back") }
-                    Button(
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ClayOutlinedButton(onClick = {
+                        reviewRows.clear()
+                        receipt = null
+                    }) { Text("Back", style = MaterialTheme.typography.labelLarge) }
+                    ClayButton(
                         onClick = {
                             onSaveMany(reviewRows.map { QuickEntryItem(it.title.trim(), it.amount!!, it.category) })
                             close()
                         },
                         enabled = reviewRows.all { it.valid },
-                        shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
+                        modifier = Modifier.weight(1f),
                     ) {
-                        Text(if (reviewRows.size == 1) "Add 1 expense" else "Add ${reviewRows.size} expenses")
+                        Text(if (reviewRows.size == 1) "Add 1 expense" else "Add ${reviewRows.size} expenses", style = MaterialTheme.typography.labelLarge)
                     }
                 }
                 return@Column
@@ -243,12 +237,15 @@ fun AddExpenseSheet(
                 supportingText = if (showErrors && !titleValid) {
                     { Text("Enter a title") }
                 } else null,
-                shape = RoundedCornerShape(20.dp),
+                shape = ClayFieldShape,
+                colors = clayFieldColors(),
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,
                     imeAction = ImeAction.Next,
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clayField(),
             )
 
             OutlinedTextField(
@@ -263,19 +260,21 @@ fun AddExpenseSheet(
                 supportingText = if (showErrors && !amountValid) {
                     { Text("Enter an amount greater than 0") }
                 } else null,
-                shape = RoundedCornerShape(20.dp),
+                shape = ClayFieldShape,
+                colors = clayFieldColors(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Decimal,
                     imeAction = ImeAction.Done,
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clayField(),
             )
 
             if (editing != null) {
-                OutlinedButton(onClick = { pickingDate = true }, modifier = Modifier.fillMaxWidth()) {
+                ClayOutlinedButton(onClick = { pickingDate = true }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Rounded.CalendarMonth, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Date: ${formatDay(timestamp)}")
+                    Text("Date: ${formatDay(timestamp)}", style = MaterialTheme.typography.labelLarge)
                 }
             }
 
@@ -284,7 +283,7 @@ fun AddExpenseSheet(
 
             Spacer(Modifier.height(4.dp))
 
-            Button(
+            ClayButton(
                 onClick = {
                     if (titleValid && amountValid) {
                         if (editing != null) {
@@ -297,15 +296,9 @@ fun AddExpenseSheet(
                         showErrors = true
                     }
                 },
-                shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                elevation = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .clay(MaterialTheme.colorScheme.primary, cornerRadius = 24.dp, elevation = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (editing != null) "Save changes" else "Save expense", color = MaterialTheme.colorScheme.onPrimary)
+                Text(if (editing != null) "Save changes" else "Save expense", style = MaterialTheme.typography.labelLarge)
             }
         }
     }
