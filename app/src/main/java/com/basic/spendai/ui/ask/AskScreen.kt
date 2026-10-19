@@ -18,24 +18,20 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -43,7 +39,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -65,7 +60,14 @@ import androidx.compose.ui.unit.dp
 import com.basic.spendai.stats.Metric
 import com.basic.spendai.stats.PeriodStats
 import com.basic.spendai.ui.AskEntry
+import com.basic.spendai.ui.components.AiBadge
 import com.basic.spendai.ui.components.ClayCard
+import com.basic.spendai.ui.components.ClayFieldShape
+import com.basic.spendai.ui.components.ClayPill
+import com.basic.spendai.ui.components.TabHeader
+import com.basic.spendai.ui.components.clayField
+import com.basic.spendai.ui.components.clayFieldColors
+import androidx.compose.material3.FilledIconButton
 import com.basic.spendai.ui.motion.LocalReducedMotion
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
@@ -80,7 +82,13 @@ private val suggestions = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun AskScreen(history: List<AskEntry>, asking: Boolean, onAsk: (String) -> Unit, onBack: (() -> Unit)? = null) {
+fun AskScreen(
+    history: List<AskEntry>,
+    asking: Boolean,
+    onAsk: (String) -> Unit,
+    onBack: (() -> Unit)? = null,
+    onOpenSettings: (() -> Unit)? = null,
+) {
     // As a tab there's no back arrow; the navigation handles system back.
     onBack?.let { BackHandler(onBack = it) }
     var question by rememberSaveable { mutableStateOf("") }
@@ -93,13 +101,18 @@ fun AskScreen(history: List<AskEntry>, asking: Boolean, onAsk: (String) -> Unit,
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("Ask your spends", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = {
-                    onBack?.let { IconButton(onClick = it) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back") } }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-            )
+            // As a tab: the same header as Activity and Insights. Opened on its own: a back arrow.
+            if (onBack == null) {
+                TabHeader("Ask", onOpenSettings)
+            } else {
+                TopAppBar(
+                    title = { Text("Ask your spends", style = MaterialTheme.typography.titleLarge) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back") }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                )
+            }
         },
     ) { innerPadding ->
         LazyColumn(
@@ -117,24 +130,28 @@ fun AskScreen(history: List<AskEntry>, asking: Boolean, onAsk: (String) -> Unit,
                     onValueChange = { question = it },
                     placeholder = { Text("e.g. Food last month vs this month") },
                     singleLine = true,
-                    shape = RoundedCornerShape(20.dp),
+                    shape = ClayFieldShape,
+                    colors = clayFieldColors(),
                     trailingIcon = {
                         if (asking) {
                             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else {
-                            IconButton(onClick = { send(question) }, enabled = question.isNotBlank()) {
-                                Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "Ask")
+                            // A round emerald send button, filled once there's something to send.
+                            FilledIconButton(onClick = { send(question) }, enabled = question.isNotBlank(), modifier = Modifier.padding(end = 4.dp)) {
+                                Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "Ask", modifier = Modifier.size(20.dp))
                             }
                         }
                     },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { send(question) }),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clayField(),
                 )
             }
             item {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    suggestions.forEach { s -> SuggestionChip(onClick = { send(s) }, label = { Text(s) }, enabled = !asking) }
+                    suggestions.forEach { s -> ClayPill(text = s, onClick = { send(s) }) }
                 }
             }
             if (history.isEmpty()) {
@@ -164,7 +181,7 @@ fun AskScreen(history: List<AskEntry>, asking: Boolean, onAsk: (String) -> Unit,
 private fun ThinkingCard(modifier: Modifier = Modifier) {
     val reduced = LocalReducedMotion.current
     val transition = rememberInfiniteTransition(label = "thinking")
-    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth()) {
         Row(
             Modifier
                 .padding(horizontal = 20.dp, vertical = 18.dp)
@@ -191,8 +208,8 @@ private fun ThinkingCard(modifier: Modifier = Modifier) {
 
 @Composable
 private fun AnswerCard(entry: AskEntry, modifier: Modifier = Modifier) {
-    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 8.dp) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(entry.question, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(entry.sentence, style = MaterialTheme.typography.titleMedium)
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -202,11 +219,7 @@ private fun AnswerCard(entry: AskEntry, modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f),
                 )
-                if (entry.fromAi) {
-                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("On-device AI", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                }
+                if (entry.fromAi) AiBadge(description = "Written by on-device AI", label = "On-device AI")
             }
             // The exact numbers, always shown, so the sentence can be checked at a glance.
             NumbersRow(entry.answer.primary, entry.answer.query.metric)

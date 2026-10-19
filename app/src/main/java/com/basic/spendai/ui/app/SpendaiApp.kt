@@ -150,7 +150,7 @@ fun SpendaiApp(
         entry<AskRoute> {
             val history by viewModel.askHistory.collectAsStateWithLifecycle()
             val asking by viewModel.asking.collectAsStateWithLifecycle()
-            AskScreen(history, asking, onAsk = viewModel::ask)
+            AskScreen(history, asking, onAsk = viewModel::ask, onOpenSettings = ::openSettings)
         }
         entry<SettingsRoute> { SettingsRoute(viewModel, onBack = { current.removeLastOrNull() }) }
     }

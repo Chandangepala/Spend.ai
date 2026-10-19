@@ -27,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -42,6 +41,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.basic.spendai.ui.components.ClayButton
+import com.basic.spendai.ui.components.ClayTokens
 import com.basic.spendai.ai.AiStatus
 import com.basic.spendai.ai.GemmaState
 import com.basic.spendai.data.AppCurrency
@@ -98,7 +99,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .wrapContentWidth(Alignment.CenterHorizontally)
-                .widthIn(max = 640.dp)
+                .widthIn(max = 720.dp)
                 .selectableGroup(),
             contentPadding = PaddingValues(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -173,7 +174,7 @@ private fun AiRow(ai: AiUiState, onEnabledChange: (Boolean) -> Unit, onDownload:
             }
     }
 
-    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(
                 modifier = Modifier
@@ -200,8 +201,8 @@ private fun AiRow(ai: AiUiState, onEnabledChange: (Boolean) -> Unit, onDownload:
                     modifier = Modifier.padding(top = 4.dp),
                 )
                 when (status) {
-                    is AiStatus.Downloadable -> Button(onClick = onDownload, modifier = Modifier.padding(top = 10.dp)) {
-                        Text(if (status.error != null) "Retry download" else "Download model")
+                    is AiStatus.Downloadable -> ClayButton(onClick = onDownload, modifier = Modifier.padding(top = 10.dp)) {
+                        Text(if (status.error != null) "Retry download" else "Download model", style = MaterialTheme.typography.labelLarge)
                     }
                     is AiStatus.Downloading -> {
                         val fraction = status.bytesTotal?.takeIf { it > 0 }?.let { status.bytesDone.toFloat() / it }
@@ -254,7 +255,7 @@ private fun SmsImportRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
     ) { results -> if (results.values.all { it }) onChange(true) }
     val checked = enabled && permissions.allPermissionsGranted
 
-    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -299,7 +300,7 @@ private fun InsightsNotifyRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
     val granted = permission == null || permission.status.isGranted
     val checked = enabled && granted
 
-    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -346,7 +347,7 @@ private fun CurrencyRow(currency: AppCurrency, selected: Boolean, onClick: () ->
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clay(lerp(surface, colors.primary, 0.15f), cornerRadius = 24.dp, elevation = 4.dp),
+                    .clay(lerp(surface, colors.primary, 0.15f), cornerRadius = ClayTokens.TileRadius, elevation = ClayTokens.LowElevation),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(

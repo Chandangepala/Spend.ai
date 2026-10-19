@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -15,10 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.basic.spendai.ui.components.ClayOutlinedButton
+import com.basic.spendai.ui.components.ClaySegmented
 import com.basic.spendai.ai.ReceiptResult
 import com.basic.spendai.receipt.ReceiptPhotos
 import com.basic.spendai.util.LocalCurrency
@@ -64,7 +65,7 @@ fun ReceiptScanRow(scanning: Boolean, error: String?, onPhoto: (Uri) -> Unit) {
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
+                ClayOutlinedButton(onClick = {
                     val uri = ReceiptPhotos.newPhotoUri(context)
                     pendingPhoto = uri.toString()
                     try {
@@ -75,15 +76,13 @@ fun ReceiptScanRow(scanning: Boolean, error: String?, onPhoto: (Uri) -> Unit) {
                     }
                 }) {
                     Icon(Icons.Rounded.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Take photo")
+                    Text("Take photo", style = MaterialTheme.typography.labelLarge)
                 }
-                OutlinedButton(onClick = {
+                ClayOutlinedButton(onClick = {
                     pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }) {
                     Icon(Icons.Rounded.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Choose photo")
+                    Text("Choose photo", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -110,10 +109,12 @@ fun ReceiptHeader(receipt: ReceiptResult, asItems: Boolean, onAsItemsChange: (Bo
             )
         }
         if (receipt.items.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = !asItems, onClick = { onAsItemsChange(false) }, label = { Text("One expense") })
-                FilterChip(selected = asItems, onClick = { onAsItemsChange(true) }, label = { Text("${receipt.items.size} items") })
-            }
+            ClaySegmented(
+                options = listOf("One expense", "${receipt.items.size} items"),
+                selectedIndex = if (asItems) 1 else 0,
+                onSelect = { onAsItemsChange(it == 1) },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

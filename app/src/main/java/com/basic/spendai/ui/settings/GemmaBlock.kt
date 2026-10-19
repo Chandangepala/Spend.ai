@@ -9,10 +9,8 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -22,6 +20,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.basic.spendai.ui.components.ClayButton
+import com.basic.spendai.ui.components.ClayOutlinedButton
 import com.basic.spendai.ai.GemmaState
 import com.basic.spendai.ui.components.GemmaProgress
 import com.basic.spendai.ui.components.GemmaTermsNote
@@ -59,9 +59,9 @@ internal fun GemmaBlock(state: GemmaState, actions: GemmaActions) {
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                     if (actions.canDownload) {
-                        Button(onClick = actions.onDownload) { Text("Download (Wi-Fi)") }
+                        ClayButton(onClick = actions.onDownload) { Text("Download (Wi-Fi)", style = MaterialTheme.typography.labelLarge) }
                     }
-                    OutlinedButton(onClick = { picker.launch(arrayOf("*/*")) }) { Text("Import model file") }
+                    ClayOutlinedButton(onClick = { picker.launch(arrayOf("*/*")) }) { Text("Import model file", style = MaterialTheme.typography.labelLarge) }
                 }
                 GemmaTermsNote()
                 if (!actions.canDownload) {

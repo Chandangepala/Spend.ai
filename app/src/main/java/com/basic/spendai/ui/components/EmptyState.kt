@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,6 +43,6 @@ fun EmptyState(
             modifier = Modifier.padding(top = 12.dp),
         )
         Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-        actionLabel?.let { FilledTonalButton(onClick = onAction, modifier = Modifier.padding(top = 8.dp)) { Text(it) } }
+        actionLabel?.let { ClayButton(onClick = onAction, modifier = Modifier.padding(top = 8.dp)) { Text(it, style = MaterialTheme.typography.labelLarge) } }
     }
 }
