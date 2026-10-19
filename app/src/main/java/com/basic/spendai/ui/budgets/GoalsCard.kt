@@ -18,7 +18,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -43,6 +42,7 @@ import com.basic.spendai.ai.CoachWriter
 import com.basic.spendai.budgets.GoalMath
 import com.basic.spendai.data.SavingsGoal
 import com.basic.spendai.ui.components.ClayCard
+import com.basic.spendai.ui.components.ClayButton
 import com.basic.spendai.ui.motion.growFraction
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
@@ -64,7 +64,7 @@ fun GoalsCard(
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
 ) {
-    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth(), cornerRadius = 28.dp, elevation = 10.dp) {
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(vertical = 12.dp)) {
             Row(Modifier.padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Savings goals", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -130,7 +130,7 @@ private fun GoalRow(goal: SavingsGoal, today: LocalDate, onEdit: () -> Unit, onA
         }
         CoachLine(CoachWriter.Topic.Goal(goal.name, plan, deadline), onCoach)
         if (!plan.done) {
-            FilledTonalButton(onClick = onAddMoney) { Text("Add money") }
+            ClayButton(onClick = onAddMoney) { Text("Add money", style = MaterialTheme.typography.labelLarge) }
         }
     }
 }

@@ -3,24 +3,21 @@ package com.basic.spendai.ui.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.basic.spendai.data.Category
+import com.basic.spendai.ui.components.ClayChip
+import com.basic.spendai.ui.components.ClayPill
+import androidx.compose.foundation.layout.size
 
 /** How many categories show before "+ More". */
 const val VISIBLE_CATEGORIES = 7
@@ -51,37 +48,25 @@ fun CategoryChips(
     FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        // Selected: emerald with white text. Unselected: white clay, the category colour only on the icon
+        // (text never takes the category colour; amber or slate text was hard to read).
         shown.forEach { option ->
-            FilterChip(
+            ClayChip(
                 selected = option == selected,
                 onClick = { onSelect(option) },
-                label = { Text(option.label) },
-                leadingIcon = {
-                    Icon(option.icon, contentDescription = null, tint = if (option == selected) Color.White else option.color)
-                },
-                shape = RoundedCornerShape(16.dp),
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = option.color,
-                    selectedLabelColor = Color.White,
-                    labelColor = option.color,
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    enabled = true,
-                    selected = option == selected,
-                    borderColor = option.color.copy(alpha = 0.5f),
-                ),
+                label = option.label,
+                icon = option.icon,
+                iconTint = option.color,
             )
         }
         if (hidden > 0) {
-            AssistChip(
+            ClayPill(
+                text = if (expanded) "Less" else "+ More ($hidden)",
                 onClick = { expanded = !expanded },
-                label = { Text(if (expanded) "Less" else "+ More ($hidden)") },
-                trailingIcon = {
-                    Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, contentDescription = null)
+                trailing = {
+                    Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, contentDescription = null, modifier = Modifier.size(18.dp))
                 },
-                shape = RoundedCornerShape(16.dp),
             )
         }
     }

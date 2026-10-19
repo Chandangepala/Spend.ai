@@ -50,7 +50,7 @@ fun InsightCard(insight: InsightUi, modifier: Modifier = Modifier) {
     var truncated by remember { mutableStateOf(false) }
     val expandable = insight.details.isNotEmpty() || truncated || expanded
     val colors = MaterialTheme.colorScheme
-    ClayCard(color = colors.surface, modifier = modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 6.dp) {
+    ClayCard(color = colors.surface, modifier = modifier.fillMaxWidth()) {
         Column(
             Modifier
                 .animateContentSize()

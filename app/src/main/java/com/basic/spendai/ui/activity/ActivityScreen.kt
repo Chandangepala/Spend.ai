@@ -17,26 +17,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,7 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -56,7 +47,13 @@ import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.ExpenseViewModel
 import com.basic.spendai.ui.app.AddExpenseFab
 import com.basic.spendai.ui.app.ExpenseActions
+import com.basic.spendai.ui.components.ClayChip
+import com.basic.spendai.ui.components.ClayFieldShape
+import com.basic.spendai.ui.components.ClaySegmented
 import com.basic.spendai.ui.components.EmptyState
+import com.basic.spendai.ui.components.TabHeader
+import com.basic.spendai.ui.components.clayField
+import com.basic.spendai.ui.components.clayFieldColors
 import com.basic.spendai.ui.detected.DetectedReview
 import com.basic.spendai.ui.home.ENTRANCE_MS
 import com.basic.spendai.ui.home.SwipeToDeleteItem
@@ -88,40 +85,22 @@ fun ActivityScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("Activity", style = MaterialTheme.typography.titleLarge) },
-                actions = {
-                    IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, contentDescription = "Settings") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-            )
-        },
+        topBar = { TabHeader("Activity", onOpenSettings) },
         floatingActionButton = { if (section == ActivitySection.Expenses) AddExpenseFab(onClick = actions::add) },
     ) { innerPadding ->
         Column(Modifier.padding(innerPadding)) {
             // Full width (up to 480dp): sized to its labels, the row clipped "To review (27)" to "To review".
-            SingleChoiceSegmentedButtonRow(
-                Modifier
+            val pending = state.pendingDetections.size
+            ClaySegmented(
+                options = listOf("Expenses", if (pending > 0) "To review ($pending)" else "To review"),
+                selectedIndex = section.ordinal,
+                onSelect = { onSectionChange(ActivitySection.entries[it]) },
+                modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .padding(horizontal = 20.dp, vertical = 4.dp)
                     .widthIn(max = 480.dp)
                     .fillMaxWidth(),
-            ) {
-                val pending = state.pendingDetections.size
-                listOf(ActivitySection.Expenses to "Expenses", ActivitySection.Review to if (pending > 0) "To review ($pending)" else "To review")
-                    .forEachIndexed { i, (value, label) ->
-                        SegmentedButton(
-                            selected = section == value,
-                            onClick = { onSectionChange(value) },
-                            shape = SegmentedButtonDefaults.itemShape(i, 2),
-                            colors = SegmentedButtonDefaults.colors(
-                                activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            ),
-                        ) { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                    }
-            }
+            )
             when (section) {
                 ActivitySection.Expenses -> SearchableExpenses(state.expenses, actions, Modifier.weight(1f))
                 ActivitySection.Review -> DetectedReview(
@@ -169,22 +148,26 @@ private fun SearchableExpenses(expenses: List<Expense>, actions: ExpenseActions,
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(20.dp),
+                shape = ClayFieldShape,
+                colors = clayFieldColors(),
                 modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                    .clayField(),
             )
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp),
+                // Room above and below for the chips' clay shadows.
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(present, key = { it.name }) { c ->
                     val on = c in picked
-                    FilterChip(
+                    ClayChip(
                         selected = on,
                         onClick = { picked = if (on) picked - c else picked + c },
-                        label = { Text(c.label) },
-                        leadingIcon = { Icon(c.icon, contentDescription = null, tint = c.color, modifier = Modifier.size(18.dp)) },
+                        label = c.label,
+                        icon = c.icon,
+                        iconTint = c.color,
                     )
                 }
             }
@@ -258,7 +241,7 @@ private fun DayGroupedList(expenses: List<Expense>, actions: ExpenseActions, mod
                         .background(MaterialTheme.colorScheme.background)
                         .padding(start = 4.dp, end = 4.dp, top = 12.dp, bottom = 4.dp),
                 ) {
-                    Text(dayLabel(day), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(dayLabel(day), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                     Text(
                         formatCurrency(items.sumOf { it.amount }, currency),
                         style = MaterialTheme.typography.titleSmall,
