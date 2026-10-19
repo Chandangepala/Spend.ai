@@ -63,7 +63,7 @@ fun MonthlyTrendCard(months: List<MonthTotal>, modifier: Modifier = Modifier) {
     val axisMax = niceCeiling(months.maxOf { it.total })
     val colors = MaterialTheme.colorScheme
 
-    ClayCard(color = colors.surface, modifier = modifier.fillMaxWidth(), cornerRadius = 28.dp, elevation = 10.dp) {
+    ClayCard(color = colors.surface, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Last ${months.size} months", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))

@@ -11,7 +11,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -34,6 +33,10 @@ import androidx.compose.ui.unit.dp
 import com.basic.spendai.ai.CoachWriter
 import com.basic.spendai.data.Category
 import com.basic.spendai.ui.components.ClayCard
+import com.basic.spendai.ui.components.ClayChip
+import com.basic.spendai.ui.components.ClayFieldShape
+import com.basic.spendai.ui.components.clayField
+import com.basic.spendai.ui.components.clayFieldColors
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
 
@@ -60,7 +63,7 @@ fun WhatIfCard(
         result = Result(onWhatIf(category, percent))
     }
 
-    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth(), cornerRadius = 28.dp, elevation = 10.dp) {
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("What if you spent less?", style = MaterialTheme.typography.titleMedium)
             ExposedDropdownMenuBox(expanded = menuOpen, onExpandedChange = { menuOpen = it }) {
@@ -72,9 +75,12 @@ fun WhatIfCard(
                     leadingIcon = { Icon(category.icon, contentDescription = null, tint = category.color) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(menuOpen) },
                     singleLine = true,
+                    shape = ClayFieldShape,
+                    colors = clayFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        .clayField(),
                 )
                 ExposedDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     categories.forEach { c ->
@@ -91,7 +97,7 @@ fun WhatIfCard(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CUTS.forEach { cut ->
-                    FilterChip(selected = percent == cut, onClick = { percent = cut }, label = { Text("−$cut%") })
+                    ClayChip(selected = percent == cut, onClick = { percent = cut }, label = "−$cut%")
                 }
             }
             val r = result ?: return@Column

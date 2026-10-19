@@ -20,7 +20,7 @@ import com.basic.spendai.util.formatCurrency
 @Composable
 fun RepeatingPaymentsCard(payments: Finding.Subscriptions?, modifier: Modifier = Modifier) {
     val currency = LocalCurrency.current
-    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth(), cornerRadius = 28.dp, elevation = 10.dp) {
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp)) {
             Text("Repeating payments", style = MaterialTheme.typography.titleMedium)
             if (payments == null) {

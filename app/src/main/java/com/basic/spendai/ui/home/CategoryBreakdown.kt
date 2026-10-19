@@ -48,8 +48,6 @@ fun CategoryBreakdown(expenses: List<Expense>, modifier: Modifier = Modifier) {
     ClayCard(
         color = MaterialTheme.colorScheme.surface,
         modifier = modifier.fillMaxWidth(),
-        cornerRadius = 28.dp,
-        elevation = 10.dp,
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("By category", style = MaterialTheme.typography.titleMedium)

@@ -9,15 +9,10 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Insights
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,6 +36,7 @@ import com.basic.spendai.ui.budgets.GoalDialog
 import com.basic.spendai.ui.budgets.GoalsCard
 import com.basic.spendai.ui.budgets.WhatIfCard
 import com.basic.spendai.ui.components.EmptyState
+import com.basic.spendai.ui.components.TabHeader
 import com.basic.spendai.ui.home.CategoryBreakdown
 import com.basic.spendai.ui.home.InsightCard
 
@@ -76,15 +72,7 @@ fun InsightsScreen(viewModel: ExpenseViewModel, onOpenSettings: () -> Unit, focu
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("Insights", style = MaterialTheme.typography.titleLarge) },
-                actions = {
-                    IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, contentDescription = "Settings") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-            )
-        },
+        topBar = { TabHeader("Insights", onOpenSettings) },
     ) { innerPadding ->
         LazyColumn(
             state = listState,

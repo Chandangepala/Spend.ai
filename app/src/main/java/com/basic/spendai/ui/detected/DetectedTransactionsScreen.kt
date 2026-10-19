@@ -28,15 +28,12 @@ import androidx.compose.material.icons.rounded.MarkEmailRead
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -53,10 +50,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -67,9 +62,14 @@ import com.basic.spendai.data.DetectedTransaction
 import com.basic.spendai.data.Expense
 import com.basic.spendai.ui.components.AiBadge
 import com.basic.spendai.ui.components.ClayCard
+import com.basic.spendai.ui.components.ClayButton
+import com.basic.spendai.ui.components.ClayIconTile
+import com.basic.spendai.ui.components.ClayOutlinedButton
+import com.basic.spendai.ui.components.ClayPill
+import com.basic.spendai.ui.components.titleDecor
+import com.basic.spendai.ui.theme.DisplayFamily
 import com.basic.spendai.ui.components.DuplicateDialog
 import com.basic.spendai.ui.components.EmptyState
-import com.basic.spendai.ui.components.clay
 import com.basic.spendai.ui.theme.SpendaiTheme
 import com.basic.spendai.util.LocalCurrency
 import com.basic.spendai.util.formatCurrency
@@ -271,24 +271,12 @@ private fun DetectedItem(
     // Re-keyed on the suggestion so a learned category from another accept shows up here too.
     var category by remember(detection.id, detection.suggestedCategory) { mutableStateOf(detection.suggestedCategory) }
     var menuOpen by remember { mutableStateOf(false) }
-    val surface = MaterialTheme.colorScheme.surface
+    val decor = titleDecor(detection.merchant.orEmpty(), category)
 
-    ClayCard(color = surface, modifier = modifier.fillMaxWidth(), cornerRadius = 24.dp, elevation = 8.dp) {
+    ClayCard(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clay(
-                            color = lerp(surface, category.color, 0.18f),
-                            cornerRadius = 24.dp,
-                            elevation = 4.dp,
-                            shadowColor = category.color.copy(alpha = 0.5f),
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(category.icon, contentDescription = category.label, tint = category.color)
-                }
+                ClayIconTile(category, icon = decor.icon)
                 Spacer(Modifier.size(14.dp))
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -315,8 +303,7 @@ private fun DetectedItem(
                 Spacer(Modifier.size(8.dp))
                 Text(
                     "-${formatCurrency(detection.amount, LocalCurrency.current)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = DisplayFamily),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -342,11 +329,12 @@ private fun DetectedItem(
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 if (!hiddenMode) Box {
-                    AssistChip(
+                    ClayPill(
+                        text = category.label,
                         onClick = { menuOpen = true },
-                        label = { Text(category.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        leadingIcon = { Icon(category.icon, contentDescription = null, tint = category.color) },
-                        trailingIcon = { Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Change category") },
+                        onClickLabel = "Change category",
+                        leading = { Icon(category.icon, contentDescription = null, tint = category.color, modifier = Modifier.size(18.dp)) },
+                        trailing = { Icon(Icons.Rounded.ArrowDropDown, contentDescription = null) },
                     )
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         Category.entries.forEach { option ->
@@ -367,10 +355,10 @@ private fun DetectedItem(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (hiddenMode) {
-                        Button(onClick = onRestore) { Text("Restore", maxLines = 1, softWrap = false) }
+                        ClayButton(onClick = onRestore) { Text("Restore", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false) }
                     } else {
-                        OutlinedButton(onClick = onDismiss) { Text("Dismiss", maxLines = 1, softWrap = false) }
-                        Button(onClick = { onAccept(category) }) { Text("Add", maxLines = 1, softWrap = false) }
+                        ClayOutlinedButton(onClick = onDismiss) { Text("Dismiss", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false) }
+                        ClayButton(onClick = { onAccept(category) }) { Text("Add", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false) }
                     }
                 }
             }
